@@ -1,0 +1,24 @@
+<map id="examples/esp32/main/at25040_esp32_example.cpp" name="examples/esp32/main/at25040_esp32_example.cpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="458,5,674,45"/>
+<area shape="rect" id="Node000002" href="$at25040_8hpp.html" title="Header&#45;only Microchip AT25010/020/040B SPI EEPROM driver." alt="" coords="225,93,328,119"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="497,48,333,92,332,87,496,43"/>
+<area shape="rect" id="Node000007" title=" " alt="" coords="353,93,499,119"/>
+<area shape="poly" id="edge9_Node000001_Node000007" title=" " alt="" coords="534,48,460,89,458,84,531,43"/>
+<area shape="rect" id="Node000008" title=" " alt="" coords="524,93,608,119"/>
+<area shape="poly" id="edge10_Node000001_Node000008" title=" " alt="" coords="569,46,569,79,563,79,563,46"/>
+<area shape="rect" id="Node000009" title=" " alt="" coords="632,93,783,119"/>
+<area shape="poly" id="edge11_Node000001_Node000009" title=" " alt="" coords="601,43,675,84,673,89,599,48"/>
+<area shape="rect" id="Node000010" title=" " alt="" coords="807,93,925,119"/>
+<area shape="poly" id="edge12_Node000001_Node000010" title=" " alt="" coords="639,43,810,87,808,92,637,48"/>
+<area shape="rect" id="Node000003" href="$at25040__registers_8hpp.html" title="AT25010/020/040B SPI EEPROM opcodes and status bits (Microchip)." alt="" coords="5,167,172,192"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="247,121,133,164,131,159,246,116"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="177,240,243,265"/>
+<area shape="poly" id="edge8_Node000002_Node000004" title=" " alt="" coords="269,120,238,168,226,198,218,227,213,226,221,196,233,165,265,117"/>
+<area shape="rect" id="Node000005" href="$at25040__spi__interface_8hpp.html" title="CRTP SPI contract for the AT25040 driver." alt="" coords="247,167,442,192"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="290,117,326,155,322,158,286,121"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="376,240,447,265"/>
+<area shape="poly" id="edge7_Node000002_Node000006" title=" " alt="" coords="329,115,404,136,436,149,456,165,462,182,458,200,437,232,432,229,453,198,457,183,452,168,433,154,402,141,327,120"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="110,190,180,231,177,235,107,194"/>
+<area shape="poly" id="edge6_Node000005_Node000004" title=" " alt="" coords="324,194,245,236,243,231,322,190"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="358,191,393,228,389,232,354,194"/>
+</map>

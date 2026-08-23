@@ -1,0 +1,107 @@
+{"0": {
+    "doc": "Datasheet",
+    "title": "Datasheet",
+    "content": ". | Microchip AT25010B/AT25020B/AT25040B SPI Serial EEPROM | https://www.microchip.com/en-us/product/AT25040B | . ",
+    "url": "/hf-at25040-driver/development/docs/datasheet/README.html",
+    
+    "relUrl": "/docs/datasheet/README.html"
+  },"1": {
+    "doc": "HardFOC AT25040 Driver",
+    "title": "HF-AT25040 Driver",
+    "content": "Microchip AT25040B SPI EEPROM (512 × 8) — also AT25010B / AT25020B . Header-only C++17 template at25040::Device&lt;Spi&gt; for the 9-bit-address SPI EEPROM used as board-ID storage on the Flux analog front-end (second CS on the ADS7952 bus). | SPI Mode 0, 8-bit frames | READ/WRITE place A8 in bit 3 of the opcode | Probe() is absent-safe (0xFF MISO and RDSR echo → absent) | Do not clock the part from static constructors | . The hf-core handler is At25040Handler (HF_CORE_ENABLE_AT25040). Product identity parsing stays in the product HAL (AccessoryIdentityManager). PGA and DAC AFE parts should copy this repository’s layout (CMake settings, Jekyll docs, Doxygen, ESP32 example, reusable CI workflows) rather than growing a managers/afe/ folder. ",
+    "url": "/hf-at25040-driver/development/#hf-at25040-driver",
+    
+    "relUrl": "/#hf-at25040-driver"
+  },"2": {
+    "doc": "HardFOC AT25040 Driver",
+    "title": "Quick start",
+    "content": "| 1 2 3 4 5 6 7 8 9 10 11 . | class MySpi : public at25040::SpiInterface&lt;MySpi&gt; { public: bool transfer(const uint8_t* tx, uint8_t* rx, std::size_t len, uint32_t timeout_ms); }; MySpi spi; at25040::Device&lt;MySpi&gt; eep(spi); if (eep.Probe() == at25040::Status::Ok) { uint8_t id[8]{}; (void)eep.Read(0, id, sizeof(id)); } . | . ",
+    "url": "/hf-at25040-driver/development/#quick-start",
+    
+    "relUrl": "/#quick-start"
+  },"3": {
+    "doc": "HardFOC AT25040 Driver",
+    "title": "Documentation",
+    "content": "See docs/ — installation, protocol, CMake, examples, datasheet links. ",
+    "url": "/hf-at25040-driver/development/#documentation",
+    
+    "relUrl": "/#documentation"
+  },"4": {
+    "doc": "HardFOC AT25040 Driver",
+    "title": "License",
+    "content": "GPL-3.0-or-later, consistent with sibling hf-*-driver repositories. ",
+    "url": "/hf-at25040-driver/development/#license",
+    
+    "relUrl": "/#license"
+  },"5": {
+    "doc": "HardFOC AT25040 Driver",
+    "title": "HardFOC AT25040 Driver",
+    "content": " ",
+    "url": "/hf-at25040-driver/development/",
+    
+    "relUrl": "/"
+  },"6": {
+    "doc": "CMake",
+    "title": "CMake integration",
+    "content": "| 1 2 . | set(HF_CORE_ENABLE_AT25040 ON) include(\"${HF_CORE_DRIVER_EXT}/hf-at25040-driver/cmake/hf_at25040_build_settings.cmake\") . | . Defines HF_AT25040_PUBLIC_INCLUDE_DIRS and generates at25040_version.h. The hf-core handler compiles when the same flag is ON. ",
+    "url": "/hf-at25040-driver/development/docs/cmake_integration.html#cmake-integration",
+    
+    "relUrl": "/docs/cmake_integration.html#cmake-integration"
+  },"7": {
+    "doc": "CMake",
+    "title": "CMake",
+    "content": " ",
+    "url": "/hf-at25040-driver/development/docs/cmake_integration.html",
+    
+    "relUrl": "/docs/cmake_integration.html"
+  },"8": {
+    "doc": "Examples",
+    "title": "Examples",
+    "content": "examples/esp32/ — ESP-IDF host that implements the SPI adapter and runs Probe() / Read(0). Build with the shared hf-espidf-project-tools scripts submodule (same as sibling drivers). ",
+    "url": "/hf-at25040-driver/development/docs/examples.html",
+    
+    "relUrl": "/docs/examples.html"
+  },"9": {
+    "doc": "📚 Documentation",
+    "title": "HF-AT25040 documentation",
+    "content": ". | Installation | Quick start | Protocol | CMake integration | Examples | Datasheet | . Future AFE drivers (PGA, DAC) should keep this same docs/ set. ",
+    "url": "/hf-at25040-driver/development/docs/#hf-at25040-documentation",
+    
+    "relUrl": "/docs/#hf-at25040-documentation"
+  },"10": {
+    "doc": "📚 Documentation",
+    "title": "📚 Documentation",
+    "content": " ",
+    "url": "/hf-at25040-driver/development/docs/",
+    
+    "relUrl": "/docs/"
+  },"11": {
+    "doc": "Installation",
+    "title": "Installation",
+    "content": "Submodule under hf-core-drivers/external/hf-at25040-driver. | 1 2 . | cd hf-core-drivers git submodule add https://github.com/N3b3x/hf-at25040-driver.git external/hf-at25040-driver . | . C++17. Header-only. Include inc/ and the CMake-generated at25040_version.h directory from cmake/hf_at25040_build_settings.cmake. ",
+    "url": "/hf-at25040-driver/development/docs/installation.html",
+    
+    "relUrl": "/docs/installation.html"
+  },"12": {
+    "doc": "Protocol",
+    "title": "Protocol",
+    "content": "| Opcode | Value | Notes | . | WREN | 0x06 | Write enable | . | WRDI | 0x04 | Write disable | . | RDSR | 0x05 | Status | . | WRSR | 0x01 | Status write | . | READ | 0x03 | A8 in opcode bit 3 | . | WRITE | 0x02 | A8 in opcode bit 3; 8-byte page | . Status: WIP 0x01, WEL 0x02, BP0/BP1 0x04/0x08. Probe() requires two matching RDSR bytes that are not 0xFF, not the 0x05 echo, and have WIP clear. ",
+    "url": "/hf-at25040-driver/development/docs/protocol.html",
+    
+    "relUrl": "/docs/protocol.html"
+  },"13": {
+    "doc": "Quick start",
+    "title": "Quick start",
+    "content": "Implement at25040::SpiInterface&lt;Derived&gt;::transfer, construct at25040::Device&lt;Derived&gt;, call Probe() only after the board is attached. On Flux the EEPROM shares SPI with the ADS7952 and uses a dedicated CS (CS_ID). The product manager constructs At25040Handler with that BaseSpi*. ",
+    "url": "/hf-at25040-driver/development/docs/quickstart.html",
+    
+    "relUrl": "/docs/quickstart.html"
+  },"14": {
+    "doc": "AT25040 ESP32 example",
+    "title": "AT25040 ESP32 example",
+    "content": "# AT25040 ESP32 example Implements the CRTP SPI adapter and runs `Probe()` / `Read(0)`. Use the `examples/esp32/scripts` submodule (`hf-espidf-project-tools`) the same way as `hf-mcp9700-driver`. ",
+    "url": "/hf-at25040-driver/development/examples/esp32/",
+    
+    "relUrl": "/examples/esp32/"
+  }
+}

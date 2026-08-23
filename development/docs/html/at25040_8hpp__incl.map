@@ -1,0 +1,14 @@
+<map id="inc/at25040.hpp" name="inc/at25040.hpp">
+<area shape="rect" id="Node000001" title="Header&#45;only Microchip AT25010/020/040B SPI EEPROM driver." alt="" coords="213,5,340,31"/>
+<area shape="rect" id="Node000002" href="$at25040__registers_8hpp.html" title="AT25010/020/040B SPI EEPROM opcodes and status bits (Microchip)." alt="" coords="5,79,172,104"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="247,33,133,76,131,71,246,28"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="177,152,243,177"/>
+<area shape="poly" id="edge7_Node000001_Node000003" title=" " alt="" coords="269,32,238,80,226,110,218,139,213,138,221,108,233,77,265,29"/>
+<area shape="rect" id="Node000004" href="$at25040__spi__interface_8hpp.html" title="CRTP SPI contract for the AT25040 driver." alt="" coords="247,79,442,104"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="290,29,326,67,322,70,286,33"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="376,152,447,177"/>
+<area shape="poly" id="edge6_Node000001_Node000005" title=" " alt="" coords="341,20,372,26,403,37,433,53,456,77,462,94,458,112,437,144,432,141,453,110,457,95,452,80,429,58,401,42,370,31,340,25"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="110,102,180,143,177,147,107,106"/>
+<area shape="poly" id="edge5_Node000004_Node000003" title=" " alt="" coords="324,106,245,148,243,143,322,102"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="358,103,393,140,389,144,354,106"/>
+</map>
