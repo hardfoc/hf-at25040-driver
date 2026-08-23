@@ -1,0 +1,5 @@
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/hf_at25040_build_settings.cmake")
+
+check_required_components(hf_at25040)
