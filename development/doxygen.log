@@ -1,6 +1,7 @@
-warning: ignoring unsupported tag 'PAGE_OUTLINE_PANEL' at line 1763, file /tmp/doxyfile.I7M2jj
-warning: Tag 'DOT_TRANSPARENT' at line 2786 of file '/tmp/doxyfile.I7M2jj' has become obsolete.
+warning: ignoring unsupported tag 'PAGE_OUTLINE_PANEL' at line 1761, file /tmp/doxyfile.v3x8bG
+warning: Tag 'DOT_TRANSPARENT' at line 2786 of file '/tmp/doxyfile.v3x8bG' has become obsolete.
          To avoid this warning please remove this line from your configuration file or upgrade it using "doxygen -u"
 warning: tag INPUT: input source 'src' does not exist
 warning: source 'src' is not a readable file or directory... skipping.
 /home/runner/work/hf-at25040-driver/hf-at25040-driver/docs/datasheet/README.md:2: warning: found more than one \mainpage comment block! (first occurrence: /home/runner/work/hf-at25040-driver/hf-at25040-driver/README.md, line 2), Skipping current block!
+error: cannot open tag file docs/doxygen/html/hf-at25040.tag for writing
