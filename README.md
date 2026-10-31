@@ -12,7 +12,7 @@ permalink: /
 
 [![C++](https://img.shields.io/badge/C%2B%2B-17-blue.svg)](https://en.cppreference.com/w/cpp/17)
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://n3b3x.github.io/hf-at25040-driver/)
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://hardfoc.github.io/hf-at25040-driver/)
 
 Header-only C++17 template `at25040::Device<Spi>` for the 9-bit-address SPI
 EEPROM used as board-ID storage on the Flux analog front-end (second CS on
