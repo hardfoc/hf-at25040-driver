@@ -211,7 +211,7 @@ seo:
   name: "HardFOC AT25040 Driver"
   description: >
     Header-only AT25040/AT25040A linear thermistor driver with ESP32-C6 ADC example
-  url: "https://n3b3x.github.io/hf-at25040-driver"
+  url: "https://hardfoc.github.io/hf-at25040-driver"
   twitter:
     card: "summary_large_image"
     site: "@n3b3x"
