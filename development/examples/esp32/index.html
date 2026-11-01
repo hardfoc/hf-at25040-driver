@@ -258,9 +258,13 @@
 </h1>
     
 
-<p>Implements the CRTP SPI adapter and runs <code class="language-plaintext highlighter-rouge">Probe()</code> / <code class="language-plaintext highlighter-rouge">Read(0)</code>. Use the
-<code class="language-plaintext highlighter-rouge">examples/esp32/scripts</code> submodule (<code class="language-plaintext highlighter-rouge">hf-espidf-project-tools</code>) the same way
-as <code class="language-plaintext highlighter-rouge">hf-mcp9700-driver</code>.</p>
+<p>Implements the CRTP SPI adapter and runs <code class="language-plaintext highlighter-rouge">Probe()</code> / <code class="language-plaintext highlighter-rouge">Read(0)</code>. Apps are
+listed in <code class="language-plaintext highlighter-rouge">app_config.yml</code> and built with the <code class="language-plaintext highlighter-rouge">examples/esp32/scripts</code>
+submodule (<code class="language-plaintext highlighter-rouge">hf-espidf-project-tools</code>), the same way as <code class="language-plaintext highlighter-rouge">hf-mcp9700-driver</code>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><div class="table-wrapper"><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre></td><td class="rouge-code"><pre>./scripts/build_app.sh at25040_esp32_example Debug
+</pre></td></tr></tbody></table></div></code></pre></div></div>
 
           
 

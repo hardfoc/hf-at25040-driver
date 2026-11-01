@@ -1,0 +1,49 @@
+---
+# ESP32 AT25040 Driver — app matrix for build scripts / CI
+version: "1.0"
+
+metadata:
+  project: "ESP32 AT25040 Driver Examples"
+  default_app: "at25040_esp32_example"
+  target: "esp32c6"
+  idf_versions: ["release/v5.5", "release/v5.4"]
+  build_types: [["Debug", "Release"], ["Debug"]]
+
+apps:
+  at25040_esp32_example:
+    description: "AT25040 SPI EEPROM on ESP32-C6: CRTP SPI adapter, Probe() and driver version"
+    source_file: "at25040_esp32_example.cpp"
+    category: "example"
+    idf_versions: ["release/v5.5"]
+    build_types: ["Debug", "Release"]
+    ci_enabled: true
+    featured: true
+    hardware_required: true
+    features:
+      - "CRTP SPI adapter skeleton (wire transfer() to spi_device_transmit for your board)"
+      - "Hardware-absent safe Probe()"
+
+build_config:
+  build_types:
+    Debug:
+      description: "Debug build"
+      cmake_build_type: "Debug"
+      optimization: "-O0"
+      debug_level: "-g3"
+      defines: ["DEBUG"]
+
+    Release:
+      description: "Release build"
+      cmake_build_type: "Release"
+      optimization: "-O2"
+      debug_level: "-g0"
+      defines: ["NDEBUG"]
+
+  build_directory_pattern: "build-app-{app_type}-type-{build_type}-target-{target}-idf-{idf_version}"
+  project_name_pattern: "esp32_at25040_{app_type}_app"
+
+ci_config:
+  timeout_minutes: 30
+  fail_fast: false
+  exclude_combinations: []
+  special_apps: []
