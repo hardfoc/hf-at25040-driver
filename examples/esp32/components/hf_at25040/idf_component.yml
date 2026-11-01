@@ -1,1 +1,20 @@
-version: "1.0"
+---
+name: hf-at25040-driver
+version: "1.0.0"
+description: "AT25040B 4-Kbit SPI EEPROM — header-only driver"
+
+maintainers:
+  - "HardFOC"
+license: "GPL-3.0"
+
+url: https://github.com/hardfoc/hf-at25040-driver
+repository: https://github.com/hardfoc/hf-at25040-driver
+issues: https://github.com/hardfoc/hf-at25040-driver/issues
+
+targets:
+  - esp32c6
+  - esp32s3
+  - esp32
+
+dependencies:
+  idf: ">=5.0.0"
