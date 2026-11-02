@@ -215,6 +215,86 @@ void write_page_rejects_page_crossings() {
   CHECK(chip.transfers == 0);
 }
 
+void operations_report_busy_during_a_write_cycle() {
+  // During a write cycle only RDSR is accepted and it reads 0xFF (8707F section 6, Table 6-3).
+  MockAt25040 chip;
+  fill_pattern(chip);
+  Device eep(chip);
+  chip.write_cycle_us = 1000000;
+  chip.startWriteCycle(); // e.g. left running by an MCU reset
+  uint8_t buf[4];
+  std::memset(buf, 0xAA, sizeof(buf));
+  const uint8_t data[2] = {1, 2};
+  at25040::BlockProtect level = at25040::BlockProtect::All;
+  CHECK(eep.Read(0, buf, 4) == Status::Busy);
+  CHECK(buf[0] == 0xAA);
+  CHECK(eep.WritePage(0, data, 2) == Status::Busy);
+  CHECK(eep.Write(0, data, 2) == Status::Busy);
+  CHECK(eep.WriteEnable() == Status::Busy);
+  CHECK(eep.WriteDisable() == Status::Busy);
+  CHECK(eep.SetBlockProtection(at25040::BlockProtect::None) == Status::Busy);
+  CHECK(eep.GetBlockProtection(level) == Status::Busy);
+  CHECK(level == at25040::BlockProtect::All);
+  CHECK(chip.ignored == 0); // nothing but RDSR went out
+  CHECK(chip.writes == 1);
+
+  chip.now_ns = chip.busy_until_ns; // the write cycle ends
+  CHECK(eep.Read(0, buf, 4) == Status::Ok);
+  CHECK(std::memcmp(buf, &chip.mem[0], 4) == 0);
+}
+
+void write_disable_clears_the_latch() {
+  // WRDI, Table 6-1: 0000 X100, resets the write enable latch.
+  MockAt25040 chip;
+  Device eep(chip);
+  uint8_t sr = 0;
+  CHECK(eep.WriteEnable() == Status::Ok);
+  CHECK(eep.ReadStatus(sr) == Status::Ok);
+  CHECK(sr == at25040::kSrWel);
+  CHECK(eep.WriteDisable() == Status::Ok);
+  CHECK(chip.last_opcode == 0x04);
+  CHECK(eep.ReadStatus(sr) == Status::Ok);
+  CHECK(sr == 0x00);
+  chip.bus = MockAt25040::Bus::Broken;
+  CHECK(eep.WriteDisable() == Status::Timeout);
+}
+
+void block_protection_round_trip() {
+  // WRSR sets BP1:BP0 (Table 6-4) and takes a write cycle: the bits are non-volatile.
+  MockAt25040 chip;
+  Device eep(chip);
+  at25040::BlockProtect level = at25040::BlockProtect::All;
+  CHECK(eep.GetBlockProtection(level) == Status::Ok);
+  CHECK(level == at25040::BlockProtect::None);
+
+  CHECK(eep.SetBlockProtection(at25040::BlockProtect::UpperHalf) == Status::Ok);
+  CHECK(chip.bp == 2);
+  CHECK(chip.writes == 1);
+  CHECK(!chip.busy()); // waited for the WRSR write cycle
+  CHECK(eep.GetBlockProtection(level) == Status::Ok);
+  CHECK(level == at25040::BlockProtect::UpperHalf);
+
+  const uint8_t b = 0x11;
+  CHECK(eep.WritePage(0x100, &b, 1) == Status::Ok); // ignored by the chip: protected
+  CHECK(chip.mem[0x100] == 0xFF);
+  CHECK(eep.WritePage(0x0FF, &b, 1) == Status::Ok);
+  CHECK(chip.mem[0x0FF] == 0x11);
+
+  CHECK(eep.SetBlockProtection(at25040::BlockProtect::UpperQuarter) == Status::Ok);
+  CHECK(chip.bp == 1);
+  CHECK(eep.SetBlockProtection(at25040::BlockProtect::All) == Status::Ok);
+  CHECK(chip.bp == 3);
+  CHECK(eep.SetBlockProtection(at25040::BlockProtect::None) == Status::Ok);
+  CHECK(chip.bp == 0);
+
+  const std::size_t before = chip.transfers;
+  CHECK(eep.SetBlockProtection(static_cast<at25040::BlockProtect>(4)) == Status::Arg);
+  CHECK(chip.transfers == before);
+  chip.bus = MockAt25040::Bus::Broken;
+  CHECK(eep.SetBlockProtection(at25040::BlockProtect::All) == Status::Timeout);
+  CHECK(eep.GetBlockProtection(level) == Status::Timeout);
+}
+
 } // namespace
 
 int main() {
@@ -231,6 +311,9 @@ int main() {
   wait_ready_times_out_on_a_stuck_write_cycle();
   write_page_reports_a_write_cycle_that_does_not_end();
   write_splits_at_page_boundaries();
+  operations_report_busy_during_a_write_cycle();
+  write_disable_clears_the_latch();
+  block_protection_round_trip();
   write_page_rejects_page_crossings();
   if (failures != 0) {
     std::printf("%d check(s) failed\n", failures);

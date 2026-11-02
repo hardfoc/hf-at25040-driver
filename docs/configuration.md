@@ -38,8 +38,8 @@ Limits inside `Device`:
 ## Block protection
 
 The protection level is stored in the chip (BP1:BP0, non-volatile) and survives power cycles. Set it once in
-production with WRSR, as the [API guide](api-guide.md#status-and-block-protection) shows, and read it at start-up
-with `ReadStatus()` if your firmware depends on it.
+production with `SetBlockProtection()`, as the [API guide](api-guide.md#status-and-block-protection) shows, and read
+it at start-up with `GetBlockProtection()` if your firmware depends on it.
 
 A common layout for board identity data: write the ID and calibration into the top half (`0x100`-`0x1FF`), then set
 level 2 so that half is read-only and the bottom half stays writable for settings.

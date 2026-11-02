@@ -9,16 +9,17 @@ SO in high impedance until the next CS falling edge.
 
 | Instruction | Opcode | What it does |
 | --- | --- | --- |
-| WREN | `0x06` | Sets the write-enable latch; WP must be high. `WriteEnable()`, `WritePage()` |
-| WRDI | `0x04` | Clears the write-enable latch. Not wrapped |
-| RDSR | `0x05` | Reads the status register, also during a write cycle. `ReadStatus()`, `Probe()` |
-| WRSR | `0x01` | Writes BP1:BP0 (non-volatile, takes a write cycle). Not wrapped |
+| WREN | `0x06` | Sets the write-enable latch; WP must be high. `WriteEnable()`, `WritePage()`, `SetBlockProtection()` |
+| WRDI | `0x04` | Clears the write-enable latch, regardless of WP. `WriteDisable()` |
+| RDSR | `0x05` | Reads the status register, also during a write cycle. `ReadStatus()`, `Probe()`, `WaitReady()`, `GetBlockProtection()`, and the busy check before every other instruction |
+| WRSR | `0x01` | Writes BP1:BP0 (non-volatile, takes a write cycle). `SetBlockProtection()` |
 | READ | `0x03`, `0x0B` with A8 | Address byte, then data out; the address increments. `Read()` |
 | WRITE | `0x02`, `0x0A` with A8 | Address byte, then 1 to 8 data bytes in one page. `WritePage()` |
 
 The datasheet writes the opcodes as `0000 X110` (WREN) to `0000 A010` (WRITE); the constants are `kCmdWren`,
 `kCmdWrdi`, `kCmdRdsr`, `kCmdWrsr`, `kCmdRead` and `kCmdWrite`. `A` is address bit A8 on the AT25040B
-(`kAddrA8Mask = 0x08`); `X` is ignored. During a write cycle every instruction except RDSR is ignored.
+(`kAddrA8Mask = 0x08`); `X` is ignored. During a write cycle every instruction except RDSR is ignored, so the driver
+sends RDSR first and returns `Status::Busy` instead of an instruction the chip would drop.
 
 ## Status register
 
@@ -56,7 +57,9 @@ crosses a page, both with `Status::Arg`.
 | The two bytes differ | `Absent` | Noise, a contended MISO |
 | `0xFF` | `Absent` | Nothing drives MISO (pull-up or floating), or a write cycle is running |
 | `0x05` | `Absent` | MISO follows MOSI one byte late: the RDSR opcode comes back |
-| WIP set, not `0xFF` | `Busy` | Not seen on an AT25040B, which reads `0xFF` while busy |
+| RDY set, not `0xFF` | `Busy` | Not seen on an AT25040B, which reads `0xFF` while busy |
 | Anything else | `Ok` | A ready chip: `0x00` to `0x0E` |
 
-`LastRdsr()` returns the first status byte of the last probe, for logging.
+`LastRdsr()` returns the first status byte of the last probe, for logging. A chip in its write cycle and a floating
+MISO both read `0xFF`, so `Probe()` cannot tell them apart; call `WaitReady()` first when a write may still be
+running (after an MCU reset).

@@ -59,24 +59,29 @@ void print_status(Eeprom& eeprom) {
 }
 // --8<-- [end:status]
 
-// --8<-- [start:raw]
-// Block protection (WRSR) is not wrapped by the driver: send it through your port.
-// level: 0 none, 1 = 0x180-0x1FF, 2 = 0x100-0x1FF, 3 = whole array. WP must be high.
-at25040::Status set_protection(Eeprom& eeprom, MySpi& spi, uint8_t level) {
-  if (level > 3) {
-    return at25040::Status::Arg;
+// --8<-- [start:protect]
+// Make the top half (0x100-0x1FF: board ID, calibration) read-only. WP must be high.
+bool lock_identity(Eeprom& eeprom) {
+  at25040::BlockProtect level = at25040::BlockProtect::None;
+  if (eeprom.GetBlockProtection(level) == at25040::Status::Ok &&
+      level == at25040::BlockProtect::UpperHalf) {
+    return true; // already locked
   }
-  if (eeprom.WriteEnable() != at25040::Status::Ok) {
-    return at25040::Status::Timeout;
+  if (eeprom.SetBlockProtection(at25040::BlockProtect::UpperHalf) != at25040::Status::Ok) {
+    return false; // Busy, Timeout
   }
-  const uint8_t tx[2] = {at25040::kCmdWrsr, static_cast<uint8_t>(level << 2)};
-  uint8_t rx[2] = {};
-  if (!spi.transfer(tx, rx, sizeof(tx), 20)) {
-    return at25040::Status::Timeout;
-  }
-  return eeprom.WaitReady(); // BP1/BP0 are non-volatile: a WRSR takes a write cycle
+  // The chip ignores WRSR when WP is low, so read the level back.
+  return eeprom.GetBlockProtection(level) == at25040::Status::Ok &&
+         level == at25040::BlockProtect::UpperHalf;
 }
-// --8<-- [end:raw]
+// --8<-- [end:protect]
+
+// --8<-- [start:disable]
+// Clear the write-enable latch after a WREN you sent for your own instruction.
+void abandon_write(Eeprom& eeprom) {
+  (void)eeprom.WriteDisable(); // WRDI; Busy if a write cycle is still running
+}
+// --8<-- [end:disable]
 
 // --8<-- [start:errors]
 const char* describe(at25040::Status st) {
@@ -84,11 +89,11 @@ const char* describe(at25040::Status st) {
   case at25040::Status::Ok:
     return "ok";
   case at25040::Status::Timeout:
-    return "SPI transfer failed";
+    return "SPI transfer failed, or write cycle too long";
   case at25040::Status::Absent:
     return "no chip answered";
   case at25040::Status::Busy:
-    return "write cycle in progress";
+    return "write cycle in progress, try again";
   case at25040::Status::Arg:
     return "bad pointer, length or address";
   }

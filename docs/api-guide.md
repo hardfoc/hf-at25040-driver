@@ -18,10 +18,18 @@ holds no buffers beyond the stack frame of each call.
 | `WritePage(addr, src, len)` | WREN + WRITE: 1 to 8 bytes in one page, then waits for the write cycle |
 | `Write(addr, src, len)` | Any range inside the array: one `WritePage()` per 8-byte page |
 | `WaitReady(timeout_ms)` | RDSR until RDY clears: the end of a write cycle (default 10 ms budget) |
-| `WriteEnable()` | One WREN, before an instruction you send yourself (WRSR) |
+| `WriteEnable()`, `WriteDisable()` | One WREN or WRDI: set or clear the write-enable latch |
+| `SetBlockProtection(level)` | WREN + WRSR: BP1:BP0, then waits for the write cycle |
+| `GetBlockProtection(level)` | One RDSR, decoded into `at25040::BlockProtect` |
 | `LastRdsr()` | No transfer: the last status byte read, for logging |
 
 Every call except `LastRdsr()` returns `at25040::Status` and never throws. Check it.
+
+During a write cycle the chip ignores every instruction except RDSR. Every call that sends one (`Read()`, the writes,
+`WriteEnable()`, `WriteDisable()`, `SetBlockProtection()`) therefore reads the status register first and returns
+`Status::Busy`, sending nothing else, when RDY is 1. The driver's own writes wait for their write cycle, so you see
+`Busy` only when something else started one: firmware reset in the middle of a write, or an instruction you sent
+through your port.
 
 ## Detect the chip
 
@@ -79,21 +87,30 @@ If a page fails, `Write()` returns its status and the pages before it are writte
 --8<-- "tests/docs/api_tasks.cpp:status"
 ```
 
-The driver does not wrap WRSR. Send it through your port after `WriteEnable()`:
+`SetBlockProtection()` sends WREN and WRSR and waits for the write cycle; `GetBlockProtection()` reads the level back:
 
 ```cpp
---8<-- "tests/docs/api_tasks.cpp:raw"
+--8<-- "tests/docs/api_tasks.cpp:protect"
 ```
 
-| Level (BP1:BP0) | Read-only addresses (AT25040B) |
-| --- | --- |
-| 0 (`00`) | None |
-| 1 (`01`) | `0x180`-`0x1FF` |
-| 2 (`10`) | `0x100`-`0x1FF` |
-| 3 (`11`) | `0x000`-`0x1FF` |
+| `at25040::BlockProtect` | BP1:BP0 | Read-only addresses (AT25040B) |
+| --- | --- | --- |
+| `None` | `00` | None |
+| `UpperQuarter` | `01` | `0x180`-`0x1FF` |
+| `UpperHalf` | `10` | `0x100`-`0x1FF` |
+| `All` | `11` | `0x000`-`0x1FF` |
 
-The bits are non-volatile. A write to a protected address is ignored by the chip and still returns `Ok` from
+The bits are non-volatile. With WP low the chip ignores WRSR and `SetBlockProtection()` still returns `Ok`, so read
+the level back as above. A write to a protected address is ignored by the chip and still returns `Ok` from
 `WritePage()`: read back what matters.
+
+`WriteDisable()` sends WRDI, which clears the write-enable latch regardless of WP. The driver's writes set the latch
+themselves and the chip clears it at the end of every write cycle, so you need WRDI only after a `WriteEnable()` for
+an instruction you then decided not to send:
+
+```cpp
+--8<-- "tests/docs/api_tasks.cpp:disable"
+```
 
 ## Handle errors
 
@@ -106,8 +123,8 @@ The bits are non-volatile. A write to a protected address is ignored by the chip
 | `Ok` | The transactions completed. It does not prove a write was stored |
 | `Timeout` | Your port's `transfer()` returned `false`, or a write cycle did not end within the `WaitReady()` budget |
 | `Absent` | `Probe()` only: no plausible status register ([Protocol](protocol.md#probe)) |
-| `Busy` | `Probe()` only: WIP set in a status byte that is not `0xFF` |
-| `Arg` | `Read()`, `WritePage()`, `Write()`: null pointer, zero length, range past the array, or a page crossing (nothing is sent) |
+| `Busy` | RDSR showed a write cycle in progress, so the call sent nothing else; try again after `WaitReady()`. From `Probe()`: RDY set in a status byte that is not `0xFF` |
+| `Arg` | `Read()`, `WritePage()`, `Write()`, `SetBlockProtection()`: null pointer, a level outside `BlockProtect`, zero length, range past the array, or a page crossing (nothing is sent) |
 
 The chip itself reports nothing about a refused write (WP low, latch clear, protected block). The only check is to
 read the data back after the write cycle.

@@ -18,7 +18,7 @@ ctest --test-dir build-host --output-on-failure
 
 | File | Covers |
 | --- | --- |
-| [`tests/test_device.cpp`](../tests/test_device.cpp) | Probe decisions, A8 placement, argument checks, reads of any length across A8, page writes, multi-page `Write()`, waiting for the write cycle with and without a delay hook, and wait timeouts |
+| [`tests/test_device.cpp`](../tests/test_device.cpp) | Probe decisions, A8 placement, argument checks, reads of any length across A8, page writes, multi-page `Write()`, waiting for the write cycle with and without a delay hook, wait timeouts, `Busy` before every instruction during a write cycle, WRDI and block protection |
 | [`tests/mock_at25040.hpp`](../tests/mock_at25040.hpp) | The chip model |
 
 ## Documentation snippets

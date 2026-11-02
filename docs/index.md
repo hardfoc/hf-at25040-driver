@@ -51,8 +51,8 @@ Package
 
 ## What you get
 
-- **One object per chip.** `at25040::Device<YourSpi>` with `Probe()`, `Read()`, `WritePage()`, `ReadStatus()` and
-  `WriteEnable()`. See [API guide](api-guide.md).
+- **One object per chip.** `at25040::Device<YourSpi>` with `Probe()`, `Read()`, `Write()`, `WritePage()`,
+  `WaitReady()`, block protection and the write-enable latch. See [API guide](api-guide.md).
 - **Safe detection.** `Probe()` reads the status register twice and rejects a floating bus (`0xFF`) and a bus that
   echoes the command back. See [Hardware](hardware.md).
 - **The ninth address bit handled.** Addresses `0x100` to `0x1FF` put A8 into the opcode for you. See
