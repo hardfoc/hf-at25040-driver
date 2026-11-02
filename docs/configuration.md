@@ -25,8 +25,8 @@ in [`inc/at25040_registers.hpp`](../inc/at25040_registers.hpp) or a value in the
 | `kCmdWren` ... `kCmdWrite` | `0x06`, `0x04`, `0x05`, `0x01`, `0x03`, `0x02` | Instructions ([Protocol](protocol.md)) |
 | `kSrWip`, `kSrWel`, `kSrBp0`, `kSrBp1` | `0x01`, `0x02`, `0x04`, `0x08` | Status register bits |
 
-Two limits live inside `Device` and are not configurable: every transfer gets a 20 ms timeout, and `Read()` moves at
-most 16 bytes per call.
+Two limits live inside `Device` and are not configurable: every transfer gets a 20 ms timeout, and `Read()` sends
+at most 16 data bytes per READ transaction (`Device::kReadChunkBytes`), splitting longer reads.
 
 ## Block protection
 

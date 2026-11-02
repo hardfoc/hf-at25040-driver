@@ -42,19 +42,9 @@ at25040::Status wait_ready(Eeprom& eeprom) {
 // --8<-- [end:wait]
 
 // --8<-- [start:read]
-// Read() moves at most 16 bytes per call, so read longer blocks in chunks.
-at25040::Status read_block(Eeprom& eeprom, uint16_t addr, uint8_t* dst, uint16_t len) {
-  while (len > 0) {
-    const uint16_t n = len < 16 ? len : 16;
-    const at25040::Status st = eeprom.Read(addr, dst, n);
-    if (st != at25040::Status::Ok) {
-      return st;
-    }
-    addr = static_cast<uint16_t>(addr + n);
-    dst += n;
-    len = static_cast<uint16_t>(len - n);
-  }
-  return at25040::Status::Ok;
+// Read() streams any range inside the array; the driver splits it into READ transactions.
+at25040::Status read_settings(Eeprom& eeprom, uint8_t (&settings)[64]) {
+  return eeprom.Read(0x100, settings, sizeof(settings)); // 0x100-0x13F, A8 set by the driver
 }
 // --8<-- [end:read]
 

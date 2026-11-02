@@ -65,17 +65,60 @@ void read_puts_a8_in_the_opcode() {
   CHECK(chip.last_opcode == 0x03);
 }
 
-void read_checks_arguments_and_returns_at_most_16_bytes() {
+void fill_pattern(MockAt25040& chip) {
+  for (std::size_t i = 0; i < chip.mem.size(); ++i) {
+    chip.mem[i] = static_cast<uint8_t>((i * 7u) ^ (i >> 8));
+  }
+}
+
+void read_checks_arguments() {
   MockAt25040 chip;
   Device eep(chip);
   uint8_t buf[32];
   std::memset(buf, 0xAA, sizeof(buf));
   CHECK(eep.Read(0, nullptr, 1) == Status::Arg);
   CHECK(eep.Read(0, buf, 0) == Status::Arg);
-  CHECK(eep.Read(0x1FF, buf, 2) == Status::Arg);
-  CHECK(eep.Read(0, buf, 32) == Status::Ok); // only the first 16 bytes are filled
-  CHECK(buf[15] == 0xFF);
-  CHECK(buf[16] == 0xAA);
+  CHECK(eep.Read(0x1FF, buf, 2) == Status::Arg); // would roll over to 0x000
+  CHECK(eep.Read(0x200, buf, 1) == Status::Arg);
+  CHECK(eep.Read(0x1F0, buf, 32) == Status::Arg);
+  CHECK(chip.transfers == 0);
+  CHECK(buf[0] == 0xAA);
+}
+
+void read_returns_every_byte_requested() {
+  // Sequential read: the address increments after each byte (8707F section 6, Read Sequence).
+  MockAt25040 chip;
+  fill_pattern(chip);
+  Device eep(chip);
+  uint8_t buf[32];
+  std::memset(buf, 0xAA, sizeof(buf));
+  CHECK(eep.Read(0, buf, 32) == Status::Ok);
+  CHECK(std::memcmp(buf, &chip.mem[0], 32) == 0);
+  CHECK(eep.Read(0x1FF, buf, 1) == Status::Ok);
+  CHECK(buf[0] == chip.mem[0x1FF]);
+}
+
+void read_streams_the_whole_array_across_a8() {
+  MockAt25040 chip;
+  fill_pattern(chip);
+  Device eep(chip);
+  uint8_t all[512] = {};
+  CHECK(eep.Read(0, all, 512) == Status::Ok);
+  CHECK(std::memcmp(all, chip.mem.data(), 512) == 0);
+  // A range across 0x0FF/0x100 needs A8 set in the opcode of the chunk that starts at 0x100 or
+  // above.
+  uint8_t mid[40] = {};
+  CHECK(eep.Read(0x0F0, mid, 40) == Status::Ok);
+  CHECK(std::memcmp(mid, &chip.mem[0x0F0], 40) == 0);
+  CHECK(chip.last_opcode == 0x0B);
+}
+
+void read_reports_a_failed_chunk() {
+  MockAt25040 chip;
+  Device eep(chip);
+  chip.bus = MockAt25040::Bus::Broken;
+  uint8_t buf[40] = {};
+  CHECK(eep.Read(0, buf, 40) == Status::Timeout);
 }
 
 void write_page_returns_before_the_write_cycle_ends() {
@@ -111,7 +154,10 @@ int main() {
   probe_reports_absent_on_floating_miso_and_loopback();
   probe_during_a_write_cycle_reads_0xff();
   read_puts_a8_in_the_opcode();
-  read_checks_arguments_and_returns_at_most_16_bytes();
+  read_checks_arguments();
+  read_returns_every_byte_requested();
+  read_streams_the_whole_array_across_a8();
+  read_reports_a_failed_chunk();
   write_page_returns_before_the_write_cycle_ends();
   write_page_rejects_page_crossings();
   if (failures != 0) {

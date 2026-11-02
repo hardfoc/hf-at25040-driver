@@ -32,13 +32,18 @@ enum class Status : uint8_t {
 
 template <typename Spi>
 class Device {
- public:
+public:
   explicit Device(Spi& spi) noexcept : spi_(spi) {}
 
   Device(const Device&) = delete;
   Device& operator=(const Device&) = delete;
 
-  [[nodiscard]] uint8_t LastRdsr() const noexcept { return last_rdsr_; }
+  /** Data bytes per READ transaction; Read() splits longer requests into chunks of this size. */
+  static constexpr uint16_t kReadChunkBytes = 16;
+
+  [[nodiscard]] uint8_t LastRdsr() const noexcept {
+    return last_rdsr_;
+  }
 
   Status ReadStatus(uint8_t& sr) noexcept {
     uint8_t tx[2] = {kCmdRdsr, 0x00};
@@ -75,29 +80,38 @@ class Device {
     return Status::Ok;
   }
 
+  /**
+   * @brief READ `len` bytes starting at `addr` (sequential read, any length).
+   *
+   * The chip increments the address after every byte (datasheet 8707F, section 6, "Read Sequence"),
+   * so one READ can stream the whole array. The driver splits the request into READ transactions of
+   * at most kReadChunkBytes data bytes, so a port never sees more than 2 + kReadChunkBytes bytes,
+   * and recomputes A8 for each one.
+   *
+   * @return Status::Arg for a null `dst`, `len == 0` or a range past 0x1FF (no transfer is made;
+   * the chip would roll over to 0x000). Status::Timeout if a transfer failed: the bytes of the
+   *         chunks before it are in `dst`.
+   */
   Status Read(uint16_t addr, uint8_t* dst, uint16_t len) noexcept {
-    if (dst == nullptr || len == 0u ||
-        (static_cast<uint32_t>(addr) + len) > kCapacityBytes) {
+    if (dst == nullptr || len == 0u || addr >= kCapacityBytes ||
+        len > static_cast<uint16_t>(kCapacityBytes - addr)) {
       return Status::Arg;
     }
-    uint8_t cmd = kCmdRead;
-    if ((addr & 0x100u) != 0u) {
-      cmd = static_cast<uint8_t>(cmd | kAddrA8Mask);
-    }
-    constexpr uint16_t kMax = 16;
-    if (len > kMax) {
-      len = kMax;
-    }
-    uint8_t tx[2 + kMax] = {};
-    uint8_t rx[2 + kMax] = {};
-    tx[0] = cmd;
-    tx[1] = static_cast<uint8_t>(addr & 0xFFu);
-    const uint16_t n = static_cast<uint16_t>(2u + len);
-    if (!spi_.transfer(tx, rx, n, kTimeoutMs)) {
-      return Status::Timeout;
-    }
-    for (uint16_t i = 0; i < len; ++i) {
-      dst[i] = rx[2u + i];
+    while (len > 0u) {
+      const uint16_t n = len < kReadChunkBytes ? len : kReadChunkBytes;
+      uint8_t tx[2 + kReadChunkBytes] = {};
+      uint8_t rx[2 + kReadChunkBytes] = {};
+      tx[0] = Opcode(kCmdRead, addr);
+      tx[1] = static_cast<uint8_t>(addr & 0xFFu);
+      if (!spi_.transfer(tx, rx, static_cast<std::size_t>(2u + n), kTimeoutMs)) {
+        return Status::Timeout;
+      }
+      for (uint16_t i = 0; i < n; ++i) {
+        dst[i] = rx[2u + i];
+      }
+      addr = static_cast<uint16_t>(addr + n);
+      dst += n;
+      len = static_cast<uint16_t>(len - n);
     }
     return Status::Ok;
   }
@@ -123,13 +137,9 @@ class Device {
     if (WriteEnable() != Status::Ok) {
       return Status::Timeout;
     }
-    uint8_t cmd = kCmdWrite;
-    if ((addr & 0x100u) != 0u) {
-      cmd = static_cast<uint8_t>(cmd | kAddrA8Mask);
-    }
     uint8_t tx[2 + kPageSizeBytes] = {};
     uint8_t rx[2 + kPageSizeBytes] = {};
-    tx[0] = cmd;
+    tx[0] = Opcode(kCmdWrite, addr);
     tx[1] = static_cast<uint8_t>(addr & 0xFFu);
     for (uint16_t i = 0; i < len; ++i) {
       tx[2u + i] = src[i];
@@ -140,8 +150,13 @@ class Device {
     return Status::Ok;
   }
 
- private:
+private:
   static constexpr uint32_t kTimeoutMs = 20;
+
+  /** READ/WRITE opcode with address bit A8 in bit 3 (datasheet Table 6-1, note 1). */
+  static constexpr uint8_t Opcode(uint8_t cmd, uint16_t addr) noexcept {
+    return ((addr & 0x100u) != 0u) ? static_cast<uint8_t>(cmd | kAddrA8Mask) : cmd;
+  }
 
   Spi& spi_;
   uint8_t last_rdsr_{0xFF};
@@ -151,4 +166,4 @@ inline const char* GetAt25040DriverVersion() noexcept {
   return HF_AT25040_VERSION_STRING;
 }
 
-}  // namespace at25040
+} // namespace at25040

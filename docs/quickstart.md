@@ -52,7 +52,7 @@ What each step does:
    internal write cycle when CS goes high.
 3. The loop polls the status register until bit 0 (WIP) clears. The driver does not wait for you: a read or a
    second write during the write cycle is ignored by the chip.
-4. `Read()` sends READ and the address and returns up to 16 bytes per call.
+4. `Read()` sends READ and the address and returns the bytes asked for, from any range inside the array.
 
 `platform_delay_us()` stands for your SDK's microsecond delay. This example is built by the host CI, so it
 compiles against the current headers.

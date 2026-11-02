@@ -15,7 +15,7 @@ working chip apart without a logic analyser.
 | `WritePage()` returns `Ok`, data unchanged | WP low, the address is block-protected, or you read before the write cycle ended. Fix: WP (pin 3) high; `ReadStatus()` BP bits; wait for WIP to clear |
 | Only the first write of a burst sticks | Writes sent during the previous write cycle are ignored. Fix: Wait for WIP after each `WritePage()` ([API guide](api-guide.md#wait-for-a-write-cycle)) |
 | `WritePage()` returns `Arg` | More than 8 bytes, or the write crosses an 8-byte page. Fix: Split at page boundaries ([API guide](api-guide.md#write)) |
-| A long read returns only part of the data | `Read()` moves at most 16 bytes per call and still returns `Ok`. Fix: Read in chunks of 16 |
+| `Read()` returns `Arg` | Null buffer, zero length, or `addr + len` past `0x200`. Fix: Keep the range inside the array |
 | Data at `0x100` and up appears at `0x000` | An AT25010B or AT25020B: no A8. Fix: Check the part marking; keep to its size |
 | Reads fine, writes fail at high clock | Clock above the limit for your VCC. Fix: 5 MHz at 1.8 V, 10 MHz at 2.5 V, 20 MHz at 4.5 V |
 | Random failures, worse with long wires | HOLD floating. Fix: Tie HOLD (pin 7) high |

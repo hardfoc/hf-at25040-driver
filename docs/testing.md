@@ -17,7 +17,7 @@ ctest --test-dir build-host --output-on-failure
 
 | File | Covers |
 | --- | --- |
-| [`tests/test_device.cpp`](../tests/test_device.cpp) | Probe decisions, A8 placement, argument checks, the 16-byte read limit, page writes and the write cycle |
+| [`tests/test_device.cpp`](../tests/test_device.cpp) | Probe decisions, A8 placement, argument checks, reads of any length across A8, page writes and the write cycle |
 | [`tests/mock_at25040.hpp`](../tests/mock_at25040.hpp) | The chip model |
 
 ## Documentation snippets

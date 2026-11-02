@@ -14,7 +14,7 @@ holds no buffers beyond the stack frame of each call.
 | --- | --- |
 | `Probe()` | Two RDSR: decides whether a chip is fitted |
 | `ReadStatus(sr)` | One RDSR: write-cycle polling, protection level |
-| `Read(addr, dst, len)` | One READ: up to 16 bytes from any address |
+| `Read(addr, dst, len)` | READ: any range inside the array, in transactions of up to 16 data bytes |
 | `WritePage(addr, src, len)` | WREN + WRITE: 1 to 8 bytes in one page; starts a write cycle |
 | `WriteEnable()` | One WREN, before an instruction you send yourself (WRSR) |
 | `LastRdsr()` | No transfer: the last status byte read, for logging |
@@ -49,11 +49,11 @@ devices.
 --8<-- "tests/docs/api_tasks.cpp:read"
 ```
 
-!!! warning "`Read()` returns at most 16 bytes"
-    A longer `len` is shortened to 16 and the call still returns `Ok`. Read longer blocks in chunks, as above.
-
-`Read()` sets A8 in the opcode for addresses `0x100` and up, and refuses a range that runs past `0x1FF`
-(`Status::Arg`).
+`Read()` returns all `len` bytes. The chip increments the address after every byte, so one READ could stream the
+whole array; the driver sends one READ per 16 data bytes (`Device::kReadChunkBytes`) so that a port never sees more
+than 18 bytes, and sets A8 in each opcode for addresses `0x100` and up. A range that runs past `0x1FF` is refused
+with `Status::Arg` before anything is sent: the chip would roll over to `0x000`. If a transfer fails part way,
+`Read()` returns `Timeout` and `dst` holds the chunks read before it.
 
 ## Write
 
@@ -99,7 +99,7 @@ The bits are non-volatile. A write to a protected address is ignored by the chip
 | `Timeout` | Your port's `transfer()` returned `false` |
 | `Absent` | `Probe()` only: no plausible status register ([Protocol](protocol.md#probe)) |
 | `Busy` | `Probe()` only: WIP set in a status byte that is not `0xFF` |
-| `Arg` | `Read()`, `WritePage()`: null pointer, zero length, range past the array, or a page crossing |
+| `Arg` | `Read()`, `WritePage()`: null pointer, zero length, range past the array, or a page crossing (nothing is sent) |
 
 The chip itself reports nothing about a refused write (WP low, latch clear, protected block). The only check is to
 read the data back after the write cycle.
