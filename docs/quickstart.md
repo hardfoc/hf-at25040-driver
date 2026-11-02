@@ -1,9 +1,3 @@
----
-layout: default
-title: Quick start
-parent: "📚 Documentation"
----
-
 # Quick start
 
 Implement `at25040::SpiInterface<Derived>::transfer`, construct

@@ -1,9 +1,3 @@
----
-layout: default
-title: Examples
-parent: "📚 Documentation"
----
-
 # Examples
 
 `examples/esp32/` — ESP-IDF host that implements the SPI adapter and runs

@@ -1,9 +1,3 @@
----
-layout: default
-title: Installation
-parent: "📚 Documentation"
----
-
 # Installation
 
 Submodule under `hf-core-drivers/external/hf-at25040-driver`.

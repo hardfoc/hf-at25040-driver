@@ -1,13 +1,3 @@
----
-layout: default
-title: "📚 Documentation"
-description: "HardFOC AT25040 SPI EEPROM driver"
-nav_order: 2
-parent: "HardFOC AT25040 Driver"
-permalink: /docs/
-has_children: true
----
-
 # HF-AT25040 documentation
 
 1. [Installation](installation.md)

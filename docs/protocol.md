@@ -1,9 +1,3 @@
----
-layout: default
-title: Protocol
-parent: "📚 Documentation"
----
-
 # Protocol
 
 | Opcode | Value | Notes |

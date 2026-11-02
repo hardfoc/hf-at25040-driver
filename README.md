@@ -1,11 +1,3 @@
----
-layout: default
-title: "HardFOC AT25040 Driver"
-description: "Header-only Microchip AT25010/020/040B SPI EEPROM driver"
-nav_order: 1
-permalink: /
----
-
 # HF-AT25040 Driver
 
 **Microchip [AT25040B](https://www.microchip.com/en-us/product/AT25040B) SPI EEPROM (512 × 8) — also AT25010B / AT25020B**

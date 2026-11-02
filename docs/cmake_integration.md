@@ -1,9 +1,3 @@
----
-layout: default
-title: CMake
-parent: "📚 Documentation"
----
-
 # CMake integration
 
 ```cmake
