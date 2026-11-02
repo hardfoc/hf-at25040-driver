@@ -1289,7 +1289,7 @@
 <h1 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h1>
 <p>What you choose for an AT25040B: the part, the bus, write protection and the driver's fixed limits.</p>
 <p>The driver has no run-time configuration structure. Everything below is a board decision, a compile-time constant
-in <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/inc/at25040_registers.hpp"><code>inc/at25040_registers.hpp</code></a> or a value in the chip's status register.</p>
+in <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/inc/at25040_registers.hpp"><code>inc/at25040_registers.hpp</code></a> or a value in the chip's status register.</p>
 <h2 id="board-decisions">Board decisions<a class="headerlink" href="#board-decisions" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1364,17 +1364,52 @@ in <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359
 </tr>
 </tbody>
 </table>
-<p>Two limits live inside <code>Device</code> and are not configurable: every transfer gets a 20 ms timeout, and <code>Read()</code> moves at
-most 16 bytes per call.</p>
+<p>Limits inside <code>Device</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Constant</th>
+<th>Value</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>(transfer timeout)</td>
+<td>20 ms</td>
+<td><code>timeout_ms</code> passed to every <code>transfer()</code></td>
+</tr>
+<tr>
+<td><code>Device::kReadChunkBytes</code></td>
+<td><code>16</code></td>
+<td>Data bytes per READ transaction; <code>Read()</code> splits longer reads</td>
+</tr>
+<tr>
+<td><code>Device::kWriteCycleTimeoutMs</code></td>
+<td><code>10</code></td>
+<td>Default <code>WaitReady()</code> budget, used by every write: twice the 5 ms t<sub>WC</sub></td>
+</tr>
+<tr>
+<td><code>Device::kPollIntervalUs</code></td>
+<td><code>100</code></td>
+<td>Sleep between status polls when the port has <code>delay_us()</code></td>
+</tr>
+<tr>
+<td><code>Device::kPollsPerMsWithoutDelay</code></td>
+<td><code>1112</code></td>
+<td>Polls per millisecond of budget without <code>delay_us()</code> (one RDSR is 0.9 µs at 20 MHz)</td>
+</tr>
+</tbody>
+</table>
 <h2 id="block-protection">Block protection<a class="headerlink" href="#block-protection" title="Permanent link">&para;</a></h2>
 <p>The protection level is stored in the chip (BP1:BP0, non-volatile) and survives power cycles. Set it once in
-production with WRSR, as the <a href="../api-guide/#status-and-block-protection">API guide</a> shows, and read it at start-up
-with <code>ReadStatus()</code> if your firmware depends on it.</p>
+production with <code>SetBlockProtection()</code>, as the <a href="../api-guide/#status-and-block-protection">API guide</a> shows, and read
+it at start-up with <code>GetBlockProtection()</code> if your firmware depends on it.</p>
 <p>A common layout for board identity data: write the ID and calibration into the top half (<code>0x100</code>-<code>0x1FF</code>), then set
 level 2 so that half is read-only and the bottom half stays writable for settings.</p>
 <h2 id="version">Version<a class="headerlink" href="#version" title="Permanent link">&para;</a></h2>
 <p><code>GetAt25040DriverVersion()</code> returns the version from
-<a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/cmake/hf_at25040_build_settings.cmake"><code>cmake/hf_at25040_build_settings.cmake</code></a>, written into
+<a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/cmake/hf_at25040_build_settings.cmake"><code>cmake/hf_at25040_build_settings.cmake</code></a>, written into
 <code>at25040_version.h</code> at configure time.</p>
 
 

@@ -762,10 +762,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#no-hidden-waits-no-hidden-state" class="md-nav__link">
+  <a href="#bounded-waits-no-hidden-state" class="md-nav__link">
     <span class="md-ellipsis">
       
-        No hidden waits, no hidden state
+        Bounded waits, no hidden state
       
     </span>
   </a>
@@ -1262,10 +1262,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#no-hidden-waits-no-hidden-state" class="md-nav__link">
+  <a href="#bounded-waits-no-hidden-state" class="md-nav__link">
     <span class="md-ellipsis">
       
-        No hidden waits, no hidden state
+        Bounded waits, no hidden state
       
     </span>
   </a>
@@ -1317,8 +1317,8 @@
 
 <details class="hf-figure-desc">
 <summary>Figure description and sources</summary>
-<p>From top to bottom. Your application talks to one at25040::Device<Spi> object, whose public member functions (listed from inc/at25040.hpp) turn a call into AT25040 instructions: RDSR, WREN, READ and WRITE with A8 in the opcode. The communication interface (at25040::SpiInterface in inc/at25040_spi_interface.hpp) is a CRTP contract with one method. The platform port is the only code you write: a class whose transfer() runs one SPI transaction with chip select held low. Below it is the hardware.</p>
-<p>Drawn from: <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/inc/at25040.hpp"><code>inc/at25040.hpp</code></a> <code>Device members</code>; <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/inc/at25040_spi_interface.hpp"><code>inc/at25040_spi_interface.hpp</code></a> <code>SpiInterface</code>; figure module <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/docs/diagrams/figures/driver-layers.py"><code>docs/diagrams/figures/driver-layers.py</code></a>.</p>
+<p>From top to bottom. Your application talks to one at25040::Device<Spi> object, whose public member functions (listed from inc/at25040.hpp) turn a call into AT25040 instructions: RDSR, WREN, READ and WRITE with A8 in the opcode. The communication interface (at25040::SpiInterface in inc/at25040_spi_interface.hpp) is a CRTP contract with one method. The platform port is the only code you write: a class whose transfer() runs one SPI transaction with chip select held low, and optionally delay_us() for the write-cycle wait. Below it is the hardware.</p>
+<p>Drawn from: <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/inc/at25040.hpp"><code>inc/at25040.hpp</code></a> <code>Device members</code>; <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/inc/at25040_spi_interface.hpp"><code>inc/at25040_spi_interface.hpp</code></a> <code>SpiInterface</code>; figure module <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/docs/diagrams/figures/driver-layers.py"><code>docs/diagrams/figures/driver-layers.py</code></a>.</p>
 </details>
 <h2 id="the-three-layers">The three layers<a class="headerlink" href="#the-three-layers" title="Permanent link">&para;</a></h2>
 <table>
@@ -1332,12 +1332,12 @@
 <tbody>
 <tr>
 <td><strong>Hardware-agnostic core</strong>: <code>Device&lt;Spi&gt;</code>, uses only the port's <code>transfer()</code></td>
-<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/inc/at25040.hpp"><code>inc/at25040.hpp</code></a>, <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/inc/at25040_registers.hpp"><code>inc/at25040_registers.hpp</code></a></td>
+<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/inc/at25040.hpp"><code>inc/at25040.hpp</code></a>, <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/inc/at25040_registers.hpp"><code>inc/at25040_registers.hpp</code></a></td>
 <td>Never, for a new board</td>
 </tr>
 <tr>
 <td><strong>Communication interface</strong>: <code>SpiInterface&lt;Derived&gt;</code>, one method</td>
-<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/inc/at25040_spi_interface.hpp"><code>inc/at25040_spi_interface.hpp</code></a></td>
+<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/inc/at25040_spi_interface.hpp"><code>inc/at25040_spi_interface.hpp</code></a></td>
 <td>Never</td>
 </tr>
 <tr>
@@ -1362,18 +1362,24 @@
     D-&gt;&gt;P: transfer([0x0A, 0x10, d0..d3], 6 bytes)
     P-&gt;&gt;E: WRITE, A8 in the opcode
     P--&gt;&gt;D: true
-    D--&gt;&gt;A: Status::Ok (write cycle now running in the chip)</code></pre>
-<p>Each driver call is one or two <code>transfer()</code> calls; each <code>transfer()</code> is one CS-low period. The driver passes a
-20 ms timeout to every transfer and never waits on its own.</p>
+    loop until RDY = 0 (at most 10 ms)
+        D-&gt;&gt;P: transfer([0x05, 0x00], 2 bytes)
+        P-&gt;&gt;E: RDSR
+        D-&gt;&gt;P: delay_us(100), if the port has it
+    end
+    D--&gt;&gt;A: Status::Ok (write cycle finished)</code></pre>
+<p>Each <code>transfer()</code> is one CS-low period, and the driver passes a 20 ms timeout to every transfer. Reads and status
+calls are one transfer per 16 data bytes; writes add the status polls of the write cycle.</p>
 <h2 id="why-crtp">Why CRTP<a class="headerlink" href="#why-crtp" title="Permanent link">&para;</a></h2>
 <p>The interface is a class template parameter, not a virtual base class. The compiler sees your port's <code>transfer()</code>
-directly and inlines it; the driver has no vtable, allocates nothing and needs no RTTI. The cost is that the
-driver type names the port: <code>Device&lt;MySpi&gt;</code>. Code that has to work with several port types takes the driver as a
-template parameter too.</p>
-<h2 id="no-hidden-waits-no-hidden-state">No hidden waits, no hidden state<a class="headerlink" href="#no-hidden-waits-no-hidden-state" title="Permanent link">&para;</a></h2>
+(and <code>delay_us()</code>, if it has one, detected at compile time) directly and inlines it; the driver has no vtable,
+allocates nothing and needs no RTTI. The cost is that the driver type names the port: <code>Device&lt;MySpi&gt;</code>. Code that has
+to work with several port types takes the driver as a template parameter too.</p>
+<h2 id="bounded-waits-no-hidden-state">Bounded waits, no hidden state<a class="headerlink" href="#bounded-waits-no-hidden-state" title="Permanent link">&para;</a></h2>
 <p>The driver keeps one byte of state: the last status register value (<code>LastRdsr()</code>). It does not track the write
-cycle, the write-enable latch or the protection level; the chip does, and <code>ReadStatus()</code> reads them. That keeps
-every call's cost visible: one call, at most two transactions, no delay.</p>
+cycle, the write-enable latch or the protection level; the chip does, and <code>ReadStatus()</code> reads them. The only wait
+is the write cycle: a write returns when RDSR shows the chip ready again, or with <code>Timeout</code> after
+<code>kWriteCycleTimeoutMs</code> (10 ms).</p>
 <h2 id="source-map">Source map<a class="headerlink" href="#source-map" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

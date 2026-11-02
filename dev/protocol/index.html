@@ -1303,22 +1303,22 @@ SO in high impedance until the next CS falling edge.</p>
 <tr>
 <td>WREN</td>
 <td><code>0x06</code></td>
-<td>Sets the write-enable latch; WP must be high. <code>WriteEnable()</code>, <code>WritePage()</code></td>
+<td>Sets the write-enable latch; WP must be high. <code>WriteEnable()</code>, <code>WritePage()</code>, <code>SetBlockProtection()</code></td>
 </tr>
 <tr>
 <td>WRDI</td>
 <td><code>0x04</code></td>
-<td>Clears the write-enable latch. Not wrapped</td>
+<td>Clears the write-enable latch, regardless of WP. <code>WriteDisable()</code></td>
 </tr>
 <tr>
 <td>RDSR</td>
 <td><code>0x05</code></td>
-<td>Reads the status register, also during a write cycle. <code>ReadStatus()</code>, <code>Probe()</code></td>
+<td>Reads the status register, also during a write cycle. <code>ReadStatus()</code>, <code>Probe()</code>, <code>WaitReady()</code>, <code>GetBlockProtection()</code>, and the busy check before every other instruction</td>
 </tr>
 <tr>
 <td>WRSR</td>
 <td><code>0x01</code></td>
-<td>Writes BP1:BP0 (non-volatile, takes a write cycle). Not wrapped</td>
+<td>Writes BP1:BP0 (non-volatile, takes a write cycle). <code>SetBlockProtection()</code></td>
 </tr>
 <tr>
 <td>READ</td>
@@ -1334,7 +1334,8 @@ SO in high impedance until the next CS falling edge.</p>
 </table>
 <p>The datasheet writes the opcodes as <code>0000 X110</code> (WREN) to <code>0000 A010</code> (WRITE); the constants are <code>kCmdWren</code>,
 <code>kCmdWrdi</code>, <code>kCmdRdsr</code>, <code>kCmdWrsr</code>, <code>kCmdRead</code> and <code>kCmdWrite</code>. <code>A</code> is address bit A8 on the AT25040B
-(<code>kAddrA8Mask = 0x08</code>); <code>X</code> is ignored. During a write cycle every instruction except RDSR is ignored.</p>
+(<code>kAddrA8Mask = 0x08</code>); <code>X</code> is ignored. During a write cycle every instruction except RDSR is ignored, so the driver
+sends RDSR first and returns <code>Status::Busy</code> instead of an instruction the chip would drop.</p>
 <h2 id="status-register">Status register<a class="headerlink" href="#status-register" title="Permanent link">&para;</a></h2>
 <div class="hf-registers">
 <table>
@@ -1416,7 +1417,7 @@ crosses a page, both with <code>Status::Arg</code>.</p>
 <td>MISO follows MOSI one byte late: the RDSR opcode comes back</td>
 </tr>
 <tr>
-<td>WIP set, not <code>0xFF</code></td>
+<td>RDY set, not <code>0xFF</code></td>
 <td><code>Busy</code></td>
 <td>Not seen on an AT25040B, which reads <code>0xFF</code> while busy</td>
 </tr>
@@ -1427,7 +1428,9 @@ crosses a page, both with <code>Status::Arg</code>.</p>
 </tr>
 </tbody>
 </table>
-<p><code>LastRdsr()</code> returns the first status byte of the last probe, for logging.</p>
+<p><code>LastRdsr()</code> returns the first status byte of the last probe, for logging. A chip in its write cycle and a floating
+MISO both read <code>0xFF</code>, so <code>Probe()</code> cannot tell them apart; call <code>WaitReady()</code> first when a write may still be
+running (after an MCU reset).</p>
 
 
 

@@ -1291,8 +1291,9 @@
 static analysis, on every pull request.</p>
 <h2 id="host-unit-tests">Host unit tests<a class="headerlink" href="#host-unit-tests" title="Permanent link">&para;</a></h2>
 <p>The tests build the real driver against a model of the AT25040B on the SPI bus: the instruction set with A8 in the
-opcode, the write-enable latch, page wrap-around, block protection, and a write cycle during which the status
-register reads <code>0xFF</code>. The bus can also float, echo MOSI or fail.</p>
+opcode, the write-enable latch, page wrap-around, block protection, and a timed write cycle during which the status
+register reads <code>0xFF</code> and every other instruction is ignored. Each transfer takes model time at the bus clock, and
+a second model adds the optional <code>delay_us()</code> hook. The bus can also float, echo MOSI or fail.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cmake<span class="w"> </span>-S<span class="w"> </span>.<span class="w"> </span>-B<span class="w"> </span>build-host<span class="w"> </span>-DHF_AT25040_BUILD_TESTS<span class="o">=</span>ON
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>cmake<span class="w"> </span>--build<span class="w"> </span>build-host
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>ctest<span class="w"> </span>--test-dir<span class="w"> </span>build-host<span class="w"> </span>--output-on-failure
@@ -1306,17 +1307,21 @@ register reads <code>0xFF</code>. The bus can also float, echo MOSI or fail.</p>
 </thead>
 <tbody>
 <tr>
-<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/tests/test_device.cpp"><code>tests/test_device.cpp</code></a></td>
-<td>Probe decisions, A8 placement, argument checks, the 16-byte read limit, page writes and the write cycle</td>
+<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/tests/test_device.cpp"><code>tests/test_device.cpp</code></a></td>
+<td>Probe decisions, A8 placement, argument checks, reads of any length across A8, page writes, multi-page <code>Write()</code>, waiting for the write cycle with and without a delay hook, wait timeouts, <code>Busy</code> before every instruction during a write cycle, WRDI and block protection</td>
 </tr>
 <tr>
-<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/tests/mock_at25040.hpp"><code>tests/mock_at25040.hpp</code></a></td>
+<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/tests/mock_at25040.hpp"><code>tests/mock_at25040.hpp</code></a></td>
 <td>The chip model</td>
+</tr>
+<tr>
+<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/tests/install_consumer.cmake"><code>tests/install_consumer.cmake</code></a></td>
+<td><code>cmake --install</code> into the build tree, then a <code>find_package(hf_at25040)</code> consumer that links <code>hf::at25040</code> and includes every public header</td>
 </tr>
 </tbody>
 </table>
 <h2 id="documentation-snippets">Documentation snippets<a class="headerlink" href="#documentation-snippets" title="Permanent link">&para;</a></h2>
-<p>Every C++ block on this site is included from <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/tests/docs/my_spi.hpp"><code>tests/docs/</code></a>, which the host build
+<p>Every C++ block on this site is included from <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/tests/docs/my_spi.hpp"><code>tests/docs/</code></a>, which the host build
 compiles (target <code>hf_at25040_doc_snippets</code>) with the driver instantiated over the documented port. A change to
 the API that breaks a page breaks the build first.</p>
 <h2 id="ci-workflows">CI workflows<a class="headerlink" href="#ci-workflows" title="Permanent link">&para;</a></h2>

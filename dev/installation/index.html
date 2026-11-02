@@ -641,6 +641,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#installed-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installed package
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#esp-idf" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1284,6 +1295,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#installed-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installed package
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#esp-idf" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1388,17 +1410,27 @@ header) and requires C++17 (<code>cxx_std_17</code>), so your target does not ne
 </tr>
 </tbody>
 </table>
+<h2 id="installed-package">Installed package<a class="headerlink" href="#installed-package" title="Permanent link">&para;</a></h2>
+<p><code>cmake --install</code> copies the headers (<code>at25040.hpp</code>, <code>at25040_registers.hpp</code>, <code>at25040_spi_interface.hpp</code> and the
+generated <code>at25040_version.h</code>) to <code>include/</code> and a CMake package to <code>lib/cmake/hf_at25040/</code>, which provides the
+same target name as the build tree:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>cmake<span class="w"> </span>-S<span class="w"> </span>external/hf-at25040-driver<span class="w"> </span>-B<span class="w"> </span>build-at25040
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>cmake<span class="w"> </span>--install<span class="w"> </span>build-at25040<span class="w"> </span>--prefix<span class="w"> </span>/opt/hardfoc
+</span></code></pre></div>
+<div class="language-cmake highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nb">find_package</span><span class="p">(</span><span class="s">hf_at25040</span><span class="w"> </span><span class="s">CONFIG</span><span class="w"> </span><span class="s">REQUIRED</span><span class="p">)</span><span class="w">            </span><span class="c"># CMAKE_PREFIX_PATH=/opt/hardfoc</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nb">target_link_libraries</span><span class="p">(</span><span class="s">my_app</span><span class="w"> </span><span class="s">PRIVATE</span><span class="w"> </span><span class="s">hf::at25040</span><span class="p">)</span>
+</span></code></pre></div>
 <p>Without CMake, add <code>inc/</code> to the include path. <code>at25040.hpp</code> then falls back to a built-in version string.</p>
 <h2 id="esp-idf">ESP-IDF<a class="headerlink" href="#esp-idf" title="Permanent link">&para;</a></h2>
-<p>The ESP-IDF component wrapper is <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/examples/esp32/components/hf_at25040/CMakeLists.txt"><code>examples/esp32/components/hf_at25040/</code></a>.
+<p>The ESP-IDF component wrapper is <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/examples/esp32/components/hf_at25040/CMakeLists.txt"><code>examples/esp32/components/hf_at25040/</code></a>.
 Copy that folder into your project's <code>components/</code> (or point <code>EXTRA_COMPONENT_DIRS</code> at it) and set the
 <code>HF_AT25040_ROOT</code> cache variable to the driver checkout; the wrapper stops with a clear message when the path is
 wrong. Your component then declares <code>REQUIRES hf_at25040</code>.</p>
 <h2 id="inside-hf-core">Inside hf-core<a class="headerlink" href="#inside-hf-core" title="Permanent link">&para;</a></h2>
 <p>In the HardFOC core, the driver is a submodule of <code>hf-core-drivers</code> and is switched on with <code>HF_CORE_ENABLE_AT25040</code>,
 which also compiles the <code>At25040Handler</code>:</p>
-<div class="language-cmake highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">set</span><span class="p">(</span><span class="s">HF_CORE_ENABLE_AT25040</span><span class="w"> </span><span class="s">ON</span><span class="p">)</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">include</span><span class="p">(</span><span class="s2">"${HF_CORE_DRIVER_EXT}/hf-at25040-driver/cmake/hf_at25040_build_settings.cmake"</span><span class="p">)</span>
+<div class="language-cmake highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">set</span><span class="p">(</span><span class="s">HF_CORE_ENABLE_AT25040</span><span class="w"> </span><span class="s">ON</span><span class="p">)</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nb">include</span><span class="p">(</span><span class="s2">"${HF_CORE_DRIVER_EXT}/hf-at25040-driver/cmake/hf_at25040_build_settings.cmake"</span><span class="p">)</span>
 </span></code></pre></div>
 <h2 id="how-the-build-is-organised">How the build is organised<a class="headerlink" href="#how-the-build-is-organised" title="Permanent link">&para;</a></h2>
 <table>
@@ -1412,24 +1444,24 @@ which also compiles the <code>At25040Handler</code>:</p>
 <tbody>
 <tr>
 <td>Settings</td>
-<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/cmake/hf_at25040_build_settings.cmake"><code>cmake/hf_at25040_build_settings.cmake</code></a></td>
+<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/cmake/hf_at25040_build_settings.cmake"><code>cmake/hf_at25040_build_settings.cmake</code></a></td>
 <td>Target name, include directories, version: the single source of truth</td>
 </tr>
 <tr>
 <td>Library</td>
-<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/CMakeLists.txt"><code>CMakeLists.txt</code></a></td>
-<td><code>INTERFACE</code> target for host builds and CI</td>
+<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/CMakeLists.txt"><code>CMakeLists.txt</code></a></td>
+<td><code>INTERFACE</code> target for host builds and CI, install and <code>hf::at25040</code> export</td>
 </tr>
 <tr>
 <td>ESP-IDF</td>
-<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/examples/esp32/components/hf_at25040/CMakeLists.txt"><code>examples/esp32/components/hf_at25040/CMakeLists.txt</code></a></td>
+<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/examples/esp32/components/hf_at25040/CMakeLists.txt"><code>examples/esp32/components/hf_at25040/CMakeLists.txt</code></a></td>
 <td>IDF component wrapper over the same settings</td>
 </tr>
 </tbody>
 </table>
 <p>The version is set once in the settings file and written into <code>at25040_version.h</code> at configure time. Read it at
 run time:</p>
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">GetAt25040DriverVersion</span><span class="p">();</span><span class="w">   </span><span class="c1">// "1.0.0"</span>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">GetAt25040DriverVersion</span><span class="p">();</span><span class="w">   </span><span class="c1">// "1.0.0"</span>
 </span></code></pre></div>
 <h2 id="next">Next<a class="headerlink" href="#next" title="Permanent link">&para;</a></h2>
 <p><a href="../quickstart/">Quickstart</a> wires the chip and stores a few bytes; <a href="../porting/">Porting</a> writes the SPI interface

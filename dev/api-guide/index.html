@@ -1353,8 +1353,8 @@
 
 
 <h1 id="api-guide">API guide<a class="headerlink" href="#api-guide" title="Permanent link">&para;</a></h1>
-<p>How to do the common jobs with the driver: detect the chip, read, write, wait, protect and handle errors.</p>
-<p>Every snippet on this page is compiled by the host CI from <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/tests/docs/api_tasks.cpp"><code>tests/docs/api_tasks.cpp</code></a>,
+<p>How to do the common jobs with the driver: detect the chip, wait, read, write, protect and handle errors.</p>
+<p>Every snippet on this page is compiled by the host CI from <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/tests/docs/api_tasks.cpp"><code>tests/docs/api_tasks.cpp</code></a>,
 with <code>Eeprom</code> standing for <code>at25040::Device&lt;MySpi&gt;</code>. The <a href="../api-reference/">API reference</a> lists every member.</p>
 <h2 id="the-shape-of-the-api">The shape of the API<a class="headerlink" href="#the-shape-of-the-api" title="Permanent link">&para;</a></h2>
 <p>One <code>at25040::Device&lt;Spi&gt;</code> object per chip, constructed from a reference to your port. It is not copyable and
@@ -1377,15 +1377,31 @@ holds no buffers beyond the stack frame of each call.</p>
 </tr>
 <tr>
 <td><code>Read(addr, dst, len)</code></td>
-<td>One READ: up to 16 bytes from any address</td>
+<td>READ: any range inside the array, in transactions of up to 16 data bytes</td>
 </tr>
 <tr>
 <td><code>WritePage(addr, src, len)</code></td>
-<td>WREN + WRITE: 1 to 8 bytes in one page; starts a write cycle</td>
+<td>WREN + WRITE: 1 to 8 bytes in one page, then waits for the write cycle</td>
 </tr>
 <tr>
-<td><code>WriteEnable()</code></td>
-<td>One WREN, before an instruction you send yourself (WRSR)</td>
+<td><code>Write(addr, src, len)</code></td>
+<td>Any range inside the array: one <code>WritePage()</code> per 8-byte page</td>
+</tr>
+<tr>
+<td><code>WaitReady(timeout_ms)</code></td>
+<td>RDSR until RDY clears: the end of a write cycle (default 10 ms budget)</td>
+</tr>
+<tr>
+<td><code>WriteEnable()</code>, <code>WriteDisable()</code></td>
+<td>One WREN or WRDI: set or clear the write-enable latch</td>
+</tr>
+<tr>
+<td><code>SetBlockProtection(level)</code></td>
+<td>WREN + WRSR: BP1:BP0, then waits for the write cycle</td>
+</tr>
+<tr>
+<td><code>GetBlockProtection(level)</code></td>
+<td>One RDSR, decoded into <code>at25040::BlockProtect</code></td>
 </tr>
 <tr>
 <td><code>LastRdsr()</code></td>
@@ -1394,6 +1410,11 @@ holds no buffers beyond the stack frame of each call.</p>
 </tbody>
 </table>
 <p>Every call except <code>LastRdsr()</code> returns <code>at25040::Status</code> and never throws. Check it.</p>
+<p>During a write cycle the chip ignores every instruction except RDSR. Every call that sends one (<code>Read()</code>, the writes,
+<code>WriteEnable()</code>, <code>WriteDisable()</code>, <code>SetBlockProtection()</code>) therefore reads the status register first and returns
+<code>Status::Busy</code>, sending nothing else, when RDY is 1. The driver's own writes wait for their write cycle, so you see
+<code>Busy</code> only when something else started one: firmware reset in the middle of a write, or an instruction you sent
+through your port.</p>
 <h2 id="detect-the-chip">Detect the chip<a class="headerlink" href="#detect-the-chip" title="Permanent link">&para;</a></h2>
 <div class="language-cpp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kt">bool</span><span class="w"> </span><span class="nf">attach</span><span class="p">(</span><span class="n">Eeprom</span><span class="o">&amp;</span><span class="w"> </span><span class="n">eeprom</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">eeprom</span><span class="p">.</span><span class="n">Probe</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
@@ -1412,72 +1433,42 @@ holds no buffers beyond the stack frame of each call.</p>
 yet. A write cycle in progress also reads as <code>Absent</code> (every status bit is 1 while busy), so probe before you write,
 or wait 5 ms after the last write. <a href="../protocol/#probe">Protocol</a> lists every decision.</p>
 <h2 id="wait-for-a-write-cycle">Wait for a write cycle<a class="headerlink" href="#wait-for-a-write-cycle" title="Permanent link">&para;</a></h2>
-<p><code>WritePage()</code> returns as soon as the data is sent; the chip then needs up to 5 ms (t<sub>WC</sub>) and ignores
-everything except RDSR until it is done. Poll the WIP bit:</p>
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1">// Poll RDSR until the write cycle ends. tWC is 5 ms max; 100 x 100 us leaves a margin.</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="w"> </span><span class="nf">wait_ready</span><span class="p">(</span><span class="n">Eeprom</span><span class="o">&amp;</span><span class="w"> </span><span class="n">eeprom</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">100</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">sr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0xFF</span><span class="p">;</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">eeprom</span><span class="p">.</span><span class="n">ReadStatus</span><span class="p">(</span><span class="n">sr</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="o">::</span><span class="n">Ok</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="o">::</span><span class="n">Timeout</span><span class="p">;</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="n">sr</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">kSrWip</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="o">::</span><span class="n">Ok</span><span class="p">;</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="n">platform_delay_us</span><span class="p">(</span><span class="mi">100</span><span class="p">);</span>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">  </span><span class="p">}</span>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="o">::</span><span class="n">Busy</span><span class="p">;</span>
-</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="p">}</span>
+<p>After a WRITE or WRSR the chip runs an internal write cycle of up to 5 ms (t<sub>WC</sub>) and ignores everything
+except RDSR until it is done. <code>WritePage()</code> and <code>Write()</code> wait for it before they return, so the next call is never
+ignored. <code>WaitReady()</code> is the same wait on its own: use it after an instruction you sent through your port, or at
+start-up, when the firmware may have been reset in the middle of a write:</p>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1">// After an MCU reset the chip may still be finishing a write the old firmware started. WaitReady()</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="c1">// polls RDSR until RDY clears (default budget 10 ms, twice the 5 ms tWC).</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="kt">bool</span><span class="w"> </span><span class="nf">start_up</span><span class="p">(</span><span class="n">Eeprom</span><span class="o">&amp;</span><span class="w"> </span><span class="n">eeprom</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">eeprom</span><span class="p">.</span><span class="n">WaitReady</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="o">::</span><span class="n">Ok</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">eeprom</span><span class="p">.</span><span class="n">Probe</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="o">::</span><span class="n">Ok</span><span class="p">;</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="p">}</span>
 </span></code></pre></div>
-<p>At 1 MHz one RDSR takes 16 µs on the bus, so a tight loop works too; the delay just keeps the bus free for other
-devices.</p>
+<p><code>WaitReady()</code> polls RDSR until RDY (bit 0) reads 0 and returns <code>Timeout</code> when the budget runs out (default
+<code>kWriteCycleTimeoutMs</code> = 10 ms, twice t<sub>WC</sub>). If your port has the optional <code>delay_us()</code> hook
+(<a href="../porting/#optional-delay-hook">Porting</a>), the driver sleeps 100 µs between polls; without it, it polls back to
+back for a bounded count that lasts at least the budget even at 20 MHz. A floating MISO reads <code>0xFF</code>, which looks
+like a write cycle that never ends: it also returns <code>Timeout</code>.</p>
 <h2 id="read">Read<a class="headerlink" href="#read" title="Permanent link">&para;</a></h2>
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1">// Read() moves at most 16 bytes per call, so read longer blocks in chunks.</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="w"> </span><span class="nf">read_block</span><span class="p">(</span><span class="n">Eeprom</span><span class="o">&amp;</span><span class="w"> </span><span class="n">eeprom</span><span class="p">,</span><span class="w"> </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">addr</span><span class="p">,</span><span class="w"> </span><span class="kt">uint8_t</span><span class="o">*</span><span class="w"> </span><span class="n">dst</span><span class="p">,</span><span class="w"> </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">len</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">len</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">16</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="mi">16</span><span class="p">;</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="w"> </span><span class="n">st</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">eeprom</span><span class="p">.</span><span class="n">Read</span><span class="p">(</span><span class="n">addr</span><span class="p">,</span><span class="w"> </span><span class="n">dst</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">);</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">st</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="o">::</span><span class="n">Ok</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">st</span><span class="p">;</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="n">addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">uint16_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">addr</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">n</span><span class="p">);</span>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">    </span><span class="n">dst</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">n</span><span class="p">;</span>
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">    </span><span class="n">len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">uint16_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">len</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">n</span><span class="p">);</span>
-</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">  </span><span class="p">}</span>
-</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="o">::</span><span class="n">Ok</span><span class="p">;</span>
-</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="p">}</span>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1">// Read() streams any range inside the array; the driver splits it into READ transactions.</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="w"> </span><span class="nf">read_settings</span><span class="p">(</span><span class="n">Eeprom</span><span class="o">&amp;</span><span class="w"> </span><span class="n">eeprom</span><span class="p">,</span><span class="w"> </span><span class="kt">uint8_t</span><span class="w"> </span><span class="p">(</span><span class="o">&amp;</span><span class="n">settings</span><span class="p">)[</span><span class="mi">64</span><span class="p">])</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">eeprom</span><span class="p">.</span><span class="n">Read</span><span class="p">(</span><span class="mh">0x100</span><span class="p">,</span><span class="w"> </span><span class="n">settings</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">settings</span><span class="p">));</span><span class="w"> </span><span class="c1">// 0x100-0x13F, A8 set by the driver</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="p">}</span>
 </span></code></pre></div>
-<div class="admonition warning">
-<p class="admonition-title"><code>Read()</code> returns at most 16 bytes</p>
-<p>A longer <code>len</code> is shortened to 16 and the call still returns <code>Ok</code>. Read longer blocks in chunks, as above.</p>
-</div>
-<p><code>Read()</code> sets A8 in the opcode for addresses <code>0x100</code> and up, and refuses a range that runs past <code>0x1FF</code>
-(<code>Status::Arg</code>).</p>
+<p><code>Read()</code> returns all <code>len</code> bytes. The chip increments the address after every byte, so one READ could stream the
+whole array; the driver sends one READ per 16 data bytes (<code>Device::kReadChunkBytes</code>) so that a port never sees more
+than 18 bytes, and sets A8 in each opcode for addresses <code>0x100</code> and up. A range that runs past <code>0x1FF</code> is refused
+with <code>Status::Arg</code> before anything is sent: the chip would roll over to <code>0x000</code>. If a transfer fails part way,
+<code>Read()</code> returns <code>Timeout</code> and <code>dst</code> holds the chunks read before it.</p>
 <h2 id="write">Write<a class="headerlink" href="#write" title="Permanent link">&para;</a></h2>
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1">// WritePage() writes inside one 8-byte page. Split a longer write at page boundaries and wait after</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="c1">// each page.</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="w"> </span><span class="nf">write_block</span><span class="p">(</span><span class="n">Eeprom</span><span class="o">&amp;</span><span class="w"> </span><span class="n">eeprom</span><span class="p">,</span><span class="w"> </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">addr</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">uint8_t</span><span class="o">*</span><span class="w"> </span><span class="n">src</span><span class="p">,</span><span class="w"> </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">len</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">len</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">room</span><span class="w"> </span><span class="o">=</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">        </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">uint16_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">at25040</span><span class="o">::</span><span class="n">kPageSizeBytes</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="p">(</span><span class="n">addr</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">kPageSizeBytes</span><span class="p">));</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">room</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">room</span><span class="p">;</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="w"> </span><span class="n">st</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">eeprom</span><span class="p">.</span><span class="n">WritePage</span><span class="p">(</span><span class="n">addr</span><span class="p">,</span><span class="w"> </span><span class="n">src</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">);</span>
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">st</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="o">::</span><span class="n">Ok</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">      </span><span class="n">st</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">wait_ready</span><span class="p">(</span><span class="n">eeprom</span><span class="p">);</span>
-</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">st</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="o">::</span><span class="n">Ok</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">st</span><span class="p">;</span>
-</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">    </span><span class="n">addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">uint16_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">addr</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">n</span><span class="p">);</span>
-</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">    </span><span class="n">src</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">n</span><span class="p">;</span>
-</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">    </span><span class="n">len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">uint16_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">len</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">n</span><span class="p">);</span>
-</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">  </span><span class="p">}</span>
-</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="o">::</span><span class="n">Ok</span><span class="p">;</span>
-</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="p">}</span>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1">// Write() splits the range at 8-byte page boundaries and waits for each page's write cycle.</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="w"> </span><span class="nf">store_serial</span><span class="p">(</span><span class="n">Eeprom</span><span class="o">&amp;</span><span class="w"> </span><span class="n">eeprom</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">uint8_t</span><span class="w"> </span><span class="p">(</span><span class="o">&amp;</span><span class="n">serial</span><span class="p">)[</span><span class="mi">12</span><span class="p">])</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">eeprom</span><span class="p">.</span><span class="n">Write</span><span class="p">(</span><span class="mh">0x0FC</span><span class="p">,</span><span class="w"> </span><span class="n">serial</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">serial</span><span class="p">));</span><span class="w"> </span><span class="c1">// pages 0x0F8, 0x100 and 0x108</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>A page is 8 bytes on an 8-byte boundary (<code>kPageSizeBytes</code>). <code>WritePage()</code> refuses a write that would cross one,
-because the chip would wrap inside the page and overwrite its start. Each page costs one write cycle, so writing the
-whole 512-byte array takes 64 cycles, at most 320 ms.</p>
+because the chip would wrap inside the page and overwrite its start; <code>Write()</code> splits a longer range at the page
+boundaries. Each page costs one write cycle, so writing the whole 512-byte array takes 64 cycles, at most 320 ms.
+If a page fails, <code>Write()</code> returns its status and the pages before it are written.</p>
 <h2 id="status-and-block-protection">Status and block protection<a class="headerlink" href="#status-and-block-protection" title="Permanent link">&para;</a></h2>
 <div class="language-cpp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kt">void</span><span class="w"> </span><span class="nf">print_status</span><span class="p">(</span><span class="n">Eeprom</span><span class="o">&amp;</span><span class="w"> </span><span class="n">eeprom</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">sr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
@@ -1490,68 +1481,80 @@ whole 512-byte array takes 64 cycles, at most 320 ms.</p>
 </span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">              </span><span class="p">(</span><span class="n">sr</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">kSrWel</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">bp</span><span class="p">);</span>
 </span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="p">}</span>
 </span></code></pre></div>
-<p>The driver does not wrap WRSR. Send it through your port after <code>WriteEnable()</code>:</p>
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1">// Block protection (WRSR) is not wrapped by the driver: send it through your port.</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="c1">// level: 0 none, 1 = 0x180-0x1FF, 2 = 0x100-0x1FF, 3 = whole array. WP must be high.</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="w"> </span><span class="nf">set_protection</span><span class="p">(</span><span class="n">Eeprom</span><span class="o">&amp;</span><span class="w"> </span><span class="n">eeprom</span><span class="p">,</span><span class="w"> </span><span class="n">MySpi</span><span class="o">&amp;</span><span class="w"> </span><span class="n">spi</span><span class="p">,</span><span class="w"> </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">level</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">level</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">3</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="o">::</span><span class="n">Arg</span><span class="p">;</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span><span class="p">}</span>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">eeprom</span><span class="p">.</span><span class="n">WriteEnable</span><span class="p">()</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="o">::</span><span class="n">Ok</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="o">::</span><span class="n">Timeout</span><span class="p">;</span>
-</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">  </span><span class="p">}</span>
-</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">tx</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">at25040</span><span class="o">::</span><span class="n">kCmdWrsr</span><span class="p">,</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">uint8_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">level</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">2</span><span class="p">)};</span>
-</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">  </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">rx</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{};</span>
-</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">spi</span><span class="p">.</span><span class="n">transfer</span><span class="p">(</span><span class="n">tx</span><span class="p">,</span><span class="w"> </span><span class="n">rx</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">tx</span><span class="p">),</span><span class="w"> </span><span class="mi">20</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="o">::</span><span class="n">Timeout</span><span class="p">;</span>
-</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="w">  </span><span class="p">}</span>
-</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">wait_ready</span><span class="p">(</span><span class="n">eeprom</span><span class="p">);</span><span class="w"> </span><span class="c1">// BP1/BP0 are non-volatile: a WRSR takes a write cycle</span>
-</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="p">}</span>
+<p><code>SetBlockProtection()</code> sends WREN and WRSR and waits for the write cycle; <code>GetBlockProtection()</code> reads the level back:</p>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1">// Make the top half (0x100-0x1FF: board ID, calibration) read-only. WP must be high.</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="kt">bool</span><span class="w"> </span><span class="nf">lock_identity</span><span class="p">(</span><span class="n">Eeprom</span><span class="o">&amp;</span><span class="w"> </span><span class="n">eeprom</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="n">at25040</span><span class="o">::</span><span class="n">BlockProtect</span><span class="w"> </span><span class="n">level</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">BlockProtect</span><span class="o">::</span><span class="n">None</span><span class="p">;</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">eeprom</span><span class="p">.</span><span class="n">GetBlockProtection</span><span class="p">(</span><span class="n">level</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="o">::</span><span class="n">Ok</span><span class="w"> </span><span class="o">&amp;&amp;</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">      </span><span class="n">level</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">BlockProtect</span><span class="o">::</span><span class="n">UpperHalf</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w"> </span><span class="c1">// already locked</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span><span class="p">}</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">eeprom</span><span class="p">.</span><span class="n">SetBlockProtection</span><span class="p">(</span><span class="n">at25040</span><span class="o">::</span><span class="n">BlockProtect</span><span class="o">::</span><span class="n">UpperHalf</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="o">::</span><span class="n">Ok</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span><span class="w"> </span><span class="c1">// Busy, Timeout</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">  </span><span class="p">}</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">  </span><span class="c1">// The chip ignores WRSR when WP is low, so read the level back.</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">eeprom</span><span class="p">.</span><span class="n">GetBlockProtection</span><span class="p">(</span><span class="n">level</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="o">::</span><span class="n">Ok</span><span class="w"> </span><span class="o">&amp;&amp;</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">         </span><span class="n">level</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">BlockProtect</span><span class="o">::</span><span class="n">UpperHalf</span><span class="p">;</span>
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="p">}</span>
 </span></code></pre></div>
 <table>
 <thead>
 <tr>
-<th>Level (BP1:BP0)</th>
+<th><code>at25040::BlockProtect</code></th>
+<th>BP1:BP0</th>
 <th>Read-only addresses (AT25040B)</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>0 (<code>00</code>)</td>
+<td><code>None</code></td>
+<td><code>00</code></td>
 <td>None</td>
 </tr>
 <tr>
-<td>1 (<code>01</code>)</td>
+<td><code>UpperQuarter</code></td>
+<td><code>01</code></td>
 <td><code>0x180</code>-<code>0x1FF</code></td>
 </tr>
 <tr>
-<td>2 (<code>10</code>)</td>
+<td><code>UpperHalf</code></td>
+<td><code>10</code></td>
 <td><code>0x100</code>-<code>0x1FF</code></td>
 </tr>
 <tr>
-<td>3 (<code>11</code>)</td>
+<td><code>All</code></td>
+<td><code>11</code></td>
 <td><code>0x000</code>-<code>0x1FF</code></td>
 </tr>
 </tbody>
 </table>
-<p>The bits are non-volatile. A write to a protected address is ignored by the chip and still returns <code>Ok</code> from
+<p>The bits are non-volatile. With WP low the chip ignores WRSR and <code>SetBlockProtection()</code> still returns <code>Ok</code>, so read
+the level back as above. A write to a protected address is ignored by the chip and still returns <code>Ok</code> from
 <code>WritePage()</code>: read back what matters.</p>
+<p><code>WriteDisable()</code> sends WRDI, which clears the write-enable latch regardless of WP. The driver's writes set the latch
+themselves and the chip clears it at the end of every write cycle, so you need WRDI only after a <code>WriteEnable()</code> for
+an instruction you then decided not to send:</p>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1">// Clear the write-enable latch after a WREN you sent for your own instruction.</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="kt">void</span><span class="w"> </span><span class="nf">abandon_write</span><span class="p">(</span><span class="n">Eeprom</span><span class="o">&amp;</span><span class="w"> </span><span class="n">eeprom</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">eeprom</span><span class="p">.</span><span class="n">WriteDisable</span><span class="p">();</span><span class="w"> </span><span class="c1">// WRDI; Busy if a write cycle is still running</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="p">}</span>
+</span></code></pre></div>
 <h2 id="handle-errors">Handle errors<a class="headerlink" href="#handle-errors" title="Permanent link">&para;</a></h2>
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="nf">describe</span><span class="p">(</span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="w"> </span><span class="n">st</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">st</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="no">at25040</span><span class="o">::</span><span class="no">Status</span><span class="o">::</span><span class="no">Ok</span><span class="p">:</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">"ok"</span><span class="p">;</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="no">at25040</span><span class="o">::</span><span class="no">Status</span><span class="o">::</span><span class="no">Timeout</span><span class="p">:</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">"SPI transfer failed"</span><span class="p">;</span>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="no">at25040</span><span class="o">::</span><span class="no">Status</span><span class="o">::</span><span class="no">Absent</span><span class="p">:</span>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">"no chip answered"</span><span class="p">;</span>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="no">at25040</span><span class="o">::</span><span class="no">Status</span><span class="o">::</span><span class="no">Busy</span><span class="p">:</span>
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">"write cycle in progress"</span><span class="p">;</span>
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="no">at25040</span><span class="o">::</span><span class="no">Status</span><span class="o">::</span><span class="no">Arg</span><span class="p">:</span>
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">"bad pointer, length or address"</span><span class="p">;</span>
-</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">  </span><span class="p">}</span>
-</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="s">"unknown"</span><span class="p">;</span>
-</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="p">}</span>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="nf">describe</span><span class="p">(</span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="w"> </span><span class="n">st</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">st</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="no">at25040</span><span class="o">::</span><span class="no">Status</span><span class="o">::</span><span class="no">Ok</span><span class="p">:</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">"ok"</span><span class="p">;</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="no">at25040</span><span class="o">::</span><span class="no">Status</span><span class="o">::</span><span class="no">Timeout</span><span class="p">:</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">"SPI transfer failed, or write cycle too long"</span><span class="p">;</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="no">at25040</span><span class="o">::</span><span class="no">Status</span><span class="o">::</span><span class="no">Absent</span><span class="p">:</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">"no chip answered"</span><span class="p">;</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="no">at25040</span><span class="o">::</span><span class="no">Status</span><span class="o">::</span><span class="no">Busy</span><span class="p">:</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">"write cycle in progress, try again"</span><span class="p">;</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="no">at25040</span><span class="o">::</span><span class="no">Status</span><span class="o">::</span><span class="no">Arg</span><span class="p">:</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">"bad pointer, length or address"</span><span class="p">;</span>
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="w">  </span><span class="p">}</span>
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="s">"unknown"</span><span class="p">;</span>
+</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="p">}</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -1567,7 +1570,7 @@ whole 512-byte array takes 64 cycles, at most 320 ms.</p>
 </tr>
 <tr>
 <td><code>Timeout</code></td>
-<td>Your port's <code>transfer()</code> returned <code>false</code></td>
+<td>Your port's <code>transfer()</code> returned <code>false</code>, or a write cycle did not end within the <code>WaitReady()</code> budget</td>
 </tr>
 <tr>
 <td><code>Absent</code></td>
@@ -1575,11 +1578,11 @@ whole 512-byte array takes 64 cycles, at most 320 ms.</p>
 </tr>
 <tr>
 <td><code>Busy</code></td>
-<td><code>Probe()</code> only: WIP set in a status byte that is not <code>0xFF</code></td>
+<td>RDSR showed a write cycle in progress, so the call sent nothing else; try again after <code>WaitReady()</code>. From <code>Probe()</code>: RDY set in a status byte that is not <code>0xFF</code></td>
 </tr>
 <tr>
 <td><code>Arg</code></td>
-<td><code>Read()</code>, <code>WritePage()</code>: null pointer, zero length, range past the array, or a page crossing</td>
+<td><code>Read()</code>, <code>WritePage()</code>, <code>Write()</code>, <code>SetBlockProtection()</code>: null pointer, a level outside <code>BlockProtect</code>, zero length, range past the array, or a page crossing (nothing is sent)</td>
 </tr>
 </tbody>
 </table>

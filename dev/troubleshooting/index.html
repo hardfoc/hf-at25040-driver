@@ -1170,8 +1170,8 @@ working chip apart without a logic analyser.</p>
 <td>Nothing drives MISO: wiring, CS on the wrong pin, no VCC. Fix: Check SO (pin 2) to MISO, CS (pin 1), VCC (pin 8)</td>
 </tr>
 <tr>
-<td>Same, right after a write</td>
-<td>The chip is in its write cycle: all status bits read 1. Fix: Wait 5 ms after the last write, or poll <code>ReadStatus()</code> before probing</td>
+<td>Same, right after an MCU reset</td>
+<td>The chip is finishing a write cycle the old firmware started: all status bits read 1. Fix: Call <code>WaitReady()</code> before <code>Probe()</code></td>
 </tr>
 <tr>
 <td><code>Probe()</code> returns <code>Absent</code>, <code>LastRdsr()</code> is <code>0x05</code></td>
@@ -1182,24 +1182,36 @@ working chip apart without a logic analyser.</p>
 <td>Bus contention or noise. Fix: Another device drives MISO while this CS is low; lower the clock</td>
 </tr>
 <tr>
+<td>Calls return <code>Busy</code></td>
+<td>RDSR shows a write cycle in progress: one started outside the driver (an MCU reset during a write, a WRITE or WRSR sent through your port). Fix: <code>WaitReady()</code>, then retry</td>
+</tr>
+<tr>
+<td><code>Read()</code> and the writes return <code>Busy</code>, <code>Probe()</code> returns <code>Absent</code> with <code>0xFF</code></td>
+<td>Nothing drives MISO, which then reads RDY = 1. Fix: Check SO (pin 2), CS (pin 1), VCC</td>
+</tr>
+<tr>
+<td><code>SetBlockProtection()</code> returns <code>Ok</code>, <code>GetBlockProtection()</code> shows the old level</td>
+<td>WP is low: the chip ignores WRSR. Fix: WP (pin 3) high</td>
+</tr>
+<tr>
 <td>Every call returns <code>Timeout</code></td>
 <td>Your port's <code>transfer()</code> returned <code>false</code>. Fix: Bus not initialised, or the bus lock timed out</td>
 </tr>
 <tr>
 <td><code>WritePage()</code> returns <code>Ok</code>, data unchanged</td>
-<td>WP low, the address is block-protected, or you read before the write cycle ended. Fix: WP (pin 3) high; <code>ReadStatus()</code> BP bits; wait for WIP to clear</td>
+<td>WP low or the address is block-protected: the chip ignores the write. Fix: WP (pin 3) high; <code>ReadStatus()</code> BP bits</td>
 </tr>
 <tr>
-<td>Only the first write of a burst sticks</td>
-<td>Writes sent during the previous write cycle are ignored. Fix: Wait for WIP after each <code>WritePage()</code> (<a href="../api-guide/#wait-for-a-write-cycle">API guide</a>)</td>
+<td><code>WritePage()</code> or <code>WaitReady()</code> returns <code>Timeout</code>, other calls work</td>
+<td>RDY still 1 after 10 ms: MISO reads <code>0xFF</code> (floating), or the chip is damaged. Fix: Check SO (pin 2) and VCC; <code>LastRdsr()</code> shows the last status byte</td>
 </tr>
 <tr>
 <td><code>WritePage()</code> returns <code>Arg</code></td>
-<td>More than 8 bytes, or the write crosses an 8-byte page. Fix: Split at page boundaries (<a href="../api-guide/#write">API guide</a>)</td>
+<td>More than 8 bytes, or the write crosses an 8-byte page. Fix: Use <code>Write()</code>, which splits at page boundaries (<a href="../api-guide/#write">API guide</a>)</td>
 </tr>
 <tr>
-<td>A long read returns only part of the data</td>
-<td><code>Read()</code> moves at most 16 bytes per call and still returns <code>Ok</code>. Fix: Read in chunks of 16</td>
+<td><code>Read()</code> returns <code>Arg</code></td>
+<td>Null buffer, zero length, or <code>addr + len</code> past <code>0x200</code>. Fix: Keep the range inside the array</td>
 </tr>
 <tr>
 <td>Data at <code>0x100</code> and up appears at <code>0x000</code></td>

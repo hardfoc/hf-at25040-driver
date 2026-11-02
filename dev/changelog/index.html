@@ -1336,10 +1336,30 @@ affected API.</p>
 <h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
 <h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
 <ul>
+<li><code>WaitReady(timeout_ms)</code>: polls RDSR until RDY clears, <code>Timeout</code> after the budget (default
+  <code>kWriteCycleTimeoutMs</code> = 10 ms, twice the 5 ms t<sub>WC</sub>).</li>
+<li><code>Write(addr, src, len)</code>: any range inside the array, split at 8-byte page boundaries, waiting after each page.</li>
+<li><code>WriteDisable()</code> (WRDI), <code>SetBlockProtection(level)</code> (WREN + WRSR + write cycle) and
+  <code>GetBlockProtection(level)</code>, with <code>enum class at25040::BlockProtect { None, UpperQuarter, UpperHalf, All }</code>.</li>
+<li><code>cmake --install</code> support: the headers, the generated <code>at25040_version.h</code> and a <code>find_package(hf_at25040)</code>
+  package exporting <code>hf::at25040</code>, checked by the <code>hf_at25040_install_consumer</code> test.</li>
+<li>Optional port hook <code>void delay_us(uint32_t us)</code>, detected at compile time: <code>WaitReady()</code> sleeps 100 µs between
+  polls when it is there, and polls a bounded number of times when it is not.</li>
 <li>Host unit tests (<code>-DHF_AT25040_BUILD_TESTS=ON</code>) against a model of the AT25040B, and a CI workflow.</li>
 </ul>
 <h3 id="changed">Changed<a class="headerlink" href="#changed" title="Permanent link">&para;</a></h3>
 <ul>
+<li><strong>BREAKING</strong> (behaviour): <code>Read()</code>, <code>WritePage()</code>, <code>Write()</code>, <code>WriteEnable()</code>, <code>WriteDisable()</code> and
+  <code>SetBlockProtection()</code> read the status register first and return <code>Status::Busy</code> without sending anything else
+  while a write cycle runs; the chip would ignore the instruction. <code>Busy</code> used to come only from <code>Probe()</code>. A read on
+  a floating MISO (<code>0xFF</code>) now returns <code>Busy</code> instead of <code>Ok</code> with <code>0xFF</code> data.</li>
+<li><strong>BREAKING</strong> (behaviour): <code>WritePage()</code> waits for the internal write cycle before it returns (up to 5 ms, at most
+  10 ms before it gives up with <code>Timeout</code>). It used to return as soon as the data was sent, so a following call
+  inside t<sub>WC</sub> was silently ignored by the chip. Polling loops after <code>WritePage()</code> still work but are no
+  longer needed. <code>Timeout</code> now also means "write cycle did not end within the budget".</li>
+<li><code>Read()</code> returns every byte requested. It used to shorten any <code>len</code> above 16 to 16 and still return <code>Ok</code>; it
+  now splits the range into READ transactions of up to <code>Device::kReadChunkBytes</code> (16) data bytes, recomputes A8
+  for each, and returns <code>Arg</code> for a range past <code>0x1FF</code>. Code that read in 16-byte chunks keeps working.</li>
 <li>Documentation moved to the HardFOC MkDocs platform: standard page set (quickstart, hardware, architecture, API
   guide, porting, testing), code snippets compiled by the host build from <code>tests/docs/</code>, Doxygen under <code>/api/</code>,
   versioned with mike. The Jekyll site files and the doxygen-awesome submodule are gone.</li>

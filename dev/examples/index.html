@@ -1266,9 +1266,10 @@
 
 <h1 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h1>
 <p>The ESP32 application that exercises the driver, and how to build it.</p>
-<p>It targets an ESP32-C6 DevKit. Its port is a skeleton: <code>transfer()</code> returns <code>false</code> until you connect it to your
-board's SPI bus, so out of the box it prints the driver version and <code>Probe()</code> reports <code>Absent</code>. CI builds the app
-below on each pull request.</p>
+<p>It targets an ESP32-C6 DevKit with an AT25040B on SPI2 (SCK GPIO6, SI GPIO7, SO GPIO2, CS GPIO10, WP and HOLD
+to 3.3 V). The port is a complete ESP-IDF <code>spi_master</code> implementation. The app probes the chip, prints the block
+protection level, writes 12 bytes across three pages and the A8 boundary, reads them back and dumps part of the
+array. Without a chip it stops after <code>Probe()</code> reports <code>Absent</code>. CI builds the app below on each pull request.</p>
 <h2 id="the-apps">The apps<a class="headerlink" href="#the-apps" title="Permanent link">&para;</a></h2>
 <!-- generated: examples -->
 <table>
@@ -1283,8 +1284,8 @@ below on each pull request.</p>
 <tbody>
 <tr>
 <td><code>at25040_esp32_example</code> <span class="twemoji" title="featured"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.62L12 2 9.19 8.62 2 9.24l5.45 4.73L5.82 21z"/></svg></span></td>
-<td>AT25040 SPI EEPROM on ESP32-C6: CRTP SPI adapter, Probe() and driver version</td>
-<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/examples/esp32/main/at25040_esp32_example.cpp"><code>at25040_esp32_example.cpp</code></a></td>
+<td>AT25040 SPI EEPROM on ESP32-C6: spi_master port, probe, multi-page write and read back</td>
+<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/examples/esp32/main/at25040_esp32_example.cpp"><code>at25040_esp32_example.cpp</code></a></td>
 <td>yes</td>
 </tr>
 </tbody>
@@ -1293,7 +1294,7 @@ below on each pull request.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>./scripts/build_app.sh<span class="w"> </span>at25040_esp32_example<span class="w"> </span>Release
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>./scripts/flash_app.sh<span class="w"> </span>flash_monitor<span class="w"> </span>at25040_esp32_example<span class="w"> </span>Release
 </span></code></pre></div>
-<p>Source of this table: <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/examples/esp32/app_config.yml"><code>examples/esp32/app_config.yml</code></a>.</p>
+<p>Source of this table: <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/examples/esp32/app_config.yml"><code>examples/esp32/app_config.yml</code></a>.</p>
 <!-- /generated -->
 
 <h2 id="set-up-once">Set up once<a class="headerlink" href="#set-up-once" title="Permanent link">&para;</a></h2>
@@ -1302,7 +1303,7 @@ below on each pull request.</p>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>.<span class="w"> </span><span class="nv">$IDF_PATH</span>/export.sh<span class="w">                                 </span><span class="c1"># ESP-IDF v5.5</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>./scripts/build_app.sh<span class="w"> </span>list<span class="w">                           </span><span class="c1"># every app and build type</span>
 </span></code></pre></div>
-<p>The scripts read <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/examples/esp32/app_config.yml"><code>app_config.yml</code></a> (the same file this page's table comes
+<p>The scripts read <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/examples/esp32/app_config.yml"><code>app_config.yml</code></a> (the same file this page's table comes
 from) and build each app as its own firmware image.</p>
 <h2 id="what-to-read-in-an-example">What to read in an example<a class="headerlink" href="#what-to-read-in-an-example" title="Permanent link">&para;</a></h2>
 <table>
@@ -1315,15 +1316,19 @@ from) and build each app as its own firmware image.</p>
 <tbody>
 <tr>
 <td>See the port class an ESP-IDF build needs</td>
-<td><code>Esp32At25040Spi</code> in <code>at25040_esp32_example.cpp</code></td>
+<td><code>Esp32At25040Spi</code> in <code>at25040_esp32_example.cpp</code>: bus setup, <code>transfer()</code>, <code>delay_us()</code></td>
+</tr>
+<tr>
+<td>Change the pins or the clock</td>
+<td>The <code>kPin...</code> and <code>kClockHz</code> constants at the top of <code>at25040_esp32_example.cpp</code></td>
 </tr>
 <tr>
 <td>See how the component is pulled into an IDF project</td>
-<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/examples/esp32/components/hf_at25040/CMakeLists.txt"><code>components/hf_at25040/CMakeLists.txt</code></a></td>
+<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/examples/esp32/components/hf_at25040/CMakeLists.txt"><code>components/hf_at25040/CMakeLists.txt</code></a></td>
 </tr>
 <tr>
 <td>Read, write and wait in full</td>
-<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/tests/docs/api_tasks.cpp"><code>tests/docs/api_tasks.cpp</code></a> (compiled on the host)</td>
+<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/tests/docs/api_tasks.cpp"><code>tests/docs/api_tasks.cpp</code></a> (compiled on the host)</td>
 </tr>
 </tbody>
 </table>

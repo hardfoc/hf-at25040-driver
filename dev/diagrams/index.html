@@ -1176,14 +1176,14 @@ committed figure no longer matches the code. Each figure below lists the files i
 
 <details class="hf-figure-desc">
 <summary>Figure description and sources</summary>
-<p>From top to bottom. Your application talks to one at25040::Device<Spi> object, whose public member functions (listed from inc/at25040.hpp) turn a call into AT25040 instructions: RDSR, WREN, READ and WRITE with A8 in the opcode. The communication interface (at25040::SpiInterface in inc/at25040_spi_interface.hpp) is a CRTP contract with one method. The platform port is the only code you write: a class whose transfer() runs one SPI transaction with chip select held low. Below it is the hardware.</p>
-<p>Drawn from: <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/inc/at25040.hpp"><code>inc/at25040.hpp</code></a> <code>Device members</code>; <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/inc/at25040_spi_interface.hpp"><code>inc/at25040_spi_interface.hpp</code></a> <code>SpiInterface</code>; figure module <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/docs/diagrams/figures/driver-layers.py"><code>docs/diagrams/figures/driver-layers.py</code></a>.</p>
+<p>From top to bottom. Your application talks to one at25040::Device<Spi> object, whose public member functions (listed from inc/at25040.hpp) turn a call into AT25040 instructions: RDSR, WREN, READ and WRITE with A8 in the opcode. The communication interface (at25040::SpiInterface in inc/at25040_spi_interface.hpp) is a CRTP contract with one method. The platform port is the only code you write: a class whose transfer() runs one SPI transaction with chip select held low, and optionally delay_us() for the write-cycle wait. Below it is the hardware.</p>
+<p>Drawn from: <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/inc/at25040.hpp"><code>inc/at25040.hpp</code></a> <code>Device members</code>; <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/inc/at25040_spi_interface.hpp"><code>inc/at25040_spi_interface.hpp</code></a> <code>SpiInterface</code>; figure module <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/docs/diagrams/figures/driver-layers.py"><code>docs/diagrams/figures/driver-layers.py</code></a>.</p>
 </details>
-<p>Figure module: <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/docs/diagrams/figures/driver-layers.py"><code>docs/diagrams/figures/driver-layers.py</code></a></p>
+<p>Figure module: <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/docs/diagrams/figures/driver-layers.py"><code>docs/diagrams/figures/driver-layers.py</code></a></p>
 <p>Drawn from:</p>
 <ul>
-<li><code>Device members</code> in <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/inc/at25040.hpp"><code>inc/at25040.hpp</code></a></li>
-<li><code>SpiInterface</code> in <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3af53bb2d3c19aa359123256b4e480c5975fd38e/inc/at25040_spi_interface.hpp"><code>inc/at25040_spi_interface.hpp</code></a></li>
+<li><code>Device members</code> in <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/inc/at25040.hpp"><code>inc/at25040.hpp</code></a></li>
+<li><code>SpiInterface</code> in <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/inc/at25040_spi_interface.hpp"><code>inc/at25040_spi_interface.hpp</code></a></li>
 </ul>
 
 

@@ -1490,8 +1490,8 @@ addresses <code>0x100</code> to <code>0x1FF</code>. <a href="../protocol/">Proto
 <p>Match VCC to the MCU's I/O voltage: the inputs need V<sub>IH</sub> of at least 0.7 x VCC. Decouple VCC with
 100 nF close to pin 8.</p>
 <h2 id="write-protection">Write protection<a class="headerlink" href="#write-protection" title="Permanent link">&para;</a></h2>
-<p>Three mechanisms stop a write; all of them make <code>WritePage()</code> look successful while nothing is stored, because the
-chip does not report a refused write.</p>
+<p>Three mechanisms stop a write; all of them make <code>WritePage()</code> and <code>SetBlockProtection()</code> look successful while
+nothing is stored, because the chip does not report a refused write.</p>
 <table>
 <thead>
 <tr>
@@ -1505,11 +1505,11 @@ chip does not report a refused write.</p>
 <td>Every write and WREN is ignored</td>
 </tr>
 <tr>
-<td>Write-enable latch clear (power-up, WRDI, end of every write cycle)</td>
+<td>Write-enable latch clear (power-up, WRDI / <code>WriteDisable()</code>, end of every write cycle)</td>
 <td>The next WRITE is ignored; <code>WritePage()</code> sends WREN first</td>
 </tr>
 <tr>
-<td>Block protection BP1:BP0 (WRSR, non-volatile)</td>
+<td>Block protection BP1:BP0 (WRSR / <code>SetBlockProtection()</code>, non-volatile)</td>
 <td><code>01</code>: <code>0x180</code>-<code>0x1FF</code>, <code>10</code>: <code>0x100</code>-<code>0x1FF</code>, <code>11</code>: all read-only</td>
 </tr>
 </tbody>
