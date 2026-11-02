@@ -13,6 +13,8 @@ code that used the affected API.
 - `Write(addr, src, len)`: any range inside the array, split at 8-byte page boundaries, waiting after each page.
 - `WriteDisable()` (WRDI), `SetBlockProtection(level)` (WREN + WRSR + write cycle) and
   `GetBlockProtection(level)`, with `enum class at25040::BlockProtect { None, UpperQuarter, UpperHalf, All }`.
+- `cmake --install` support: the headers, the generated `at25040_version.h` and a `find_package(hf_at25040)`
+  package exporting `hf::at25040`, checked by the `hf_at25040_install_consumer` test.
 - Optional port hook `void delay_us(uint32_t us)`, detected at compile time: `WaitReady()` sleeps 100 µs between
   polls when it is there, and polls a bounded number of times when it is not.
 - Host unit tests (`-DHF_AT25040_BUILD_TESTS=ON`) against a model of the AT25040B, and a CI workflow.

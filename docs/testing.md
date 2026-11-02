@@ -20,6 +20,7 @@ ctest --test-dir build-host --output-on-failure
 | --- | --- |
 | [`tests/test_device.cpp`](../tests/test_device.cpp) | Probe decisions, A8 placement, argument checks, reads of any length across A8, page writes, multi-page `Write()`, waiting for the write cycle with and without a delay hook, wait timeouts, `Busy` before every instruction during a write cycle, WRDI and block protection |
 | [`tests/mock_at25040.hpp`](../tests/mock_at25040.hpp) | The chip model |
+| [`tests/install_consumer.cmake`](../tests/install_consumer.cmake) | `cmake --install` into the build tree, then a `find_package(hf_at25040)` consumer that links `hf::at25040` and includes every public header |
 
 ## Documentation snippets
 

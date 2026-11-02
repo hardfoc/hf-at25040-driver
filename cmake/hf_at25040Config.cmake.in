@@ -1,5 +1,9 @@
+# Package configuration for the installed AT25040 driver.
+#
+#   find_package(hf_at25040 CONFIG REQUIRED)
+#   target_link_libraries(my_app PRIVATE hf::at25040)
 @PACKAGE_INIT@
 
-include("${CMAKE_CURRENT_LIST_DIR}/hf_at25040_build_settings.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/hf_at25040Targets.cmake")
 
 check_required_components(hf_at25040)

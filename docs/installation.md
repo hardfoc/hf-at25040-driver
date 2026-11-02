@@ -33,6 +33,22 @@ header) and requires C++17 (`cxx_std_17`), so your target does not need to set e
 | --- | --- | --- |
 | `HF_AT25040_BUILD_TESTS` | `OFF` | Builds the host unit tests and the documentation snippets in `tests/` ([Testing and CI](testing.md)) |
 
+## Installed package
+
+`cmake --install` copies the headers (`at25040.hpp`, `at25040_registers.hpp`, `at25040_spi_interface.hpp` and the
+generated `at25040_version.h`) to `include/` and a CMake package to `lib/cmake/hf_at25040/`, which provides the
+same target name as the build tree:
+
+```bash
+cmake -S external/hf-at25040-driver -B build-at25040
+cmake --install build-at25040 --prefix /opt/hardfoc
+```
+
+```cmake
+find_package(hf_at25040 CONFIG REQUIRED)            # CMAKE_PREFIX_PATH=/opt/hardfoc
+target_link_libraries(my_app PRIVATE hf::at25040)
+```
+
 Without CMake, add `inc/` to the include path. `at25040.hpp` then falls back to a built-in version string.
 
 ## ESP-IDF
@@ -57,7 +73,7 @@ include("${HF_CORE_DRIVER_EXT}/hf-at25040-driver/cmake/hf_at25040_build_settings
 | Layer | File | Role |
 | --- | --- | --- |
 | Settings | [`cmake/hf_at25040_build_settings.cmake`](../cmake/hf_at25040_build_settings.cmake) | Target name, include directories, version: the single source of truth |
-| Library | [`CMakeLists.txt`](../CMakeLists.txt) | `INTERFACE` target for host builds and CI |
+| Library | [`CMakeLists.txt`](../CMakeLists.txt) | `INTERFACE` target for host builds and CI, install and `hf::at25040` export |
 | ESP-IDF | [`examples/esp32/components/hf_at25040/CMakeLists.txt`](../examples/esp32/components/hf_at25040/CMakeLists.txt) | IDF component wrapper over the same settings |
 
 The version is set once in the settings file and written into `at25040_version.h` at configure time. Read it at
