@@ -1,10 +1,22 @@
 ---
-# Site navigation (mkdocs-awesome-nav): the tabs and sidebar, in this order.
+# Site navigation (mkdocs-awesome-nav): the tabs and their pages, in reading order.
 nav:
   - Home: index.md
-  - "CMake": cmake_integration.md
-  - "Datasheet": datasheet/README.md
-  - "Examples": examples.md
-  - "Installation": installation.md
-  - "Protocol": protocol.md
-  - "Quick start": quickstart.md
+  - Get started:
+      - Quickstart: quickstart.md
+      - Installation: installation.md
+      - Hardware: hardware.md
+  - Concepts:
+      - Architecture: architecture.md
+      - Protocol: protocol.md
+  - Guides:
+      - API guide: api-guide.md
+      - Configuration: configuration.md
+      - Porting: porting.md
+      - Examples: examples.md
+      - Troubleshooting: troubleshooting.md
+  - Reference:
+      - API reference: api-reference.md
+      - Testing and CI: testing.md
+      - Figures: diagrams/index.md
+      - Changelog: changelog.md

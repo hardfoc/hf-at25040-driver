@@ -1,0 +1,14 @@
+{
+  "driver-layers": {
+    "title": "Three layers, one of them yours",
+    "alt": "Layer diagram: the application calls the hardware-agnostic AT25040 Device and its member functions, which use the CRTP SPI interface, which calls the one transfer method of the platform port you write, which drives the SPI bus and chip select of the AT25040B.",
+    "description": "From top to bottom. Your application talks to one at25040::Device<Spi> object, whose public member functions (listed from inc/at25040.hpp) turn a call into AT25040 instructions: RDSR, WREN, READ and WRITE with A8 in the opcode. The communication interface (at25040::SpiInterface in inc/at25040_spi_interface.hpp) is a CRTP contract with one method. The platform port is the only code you write: a class whose transfer() runs one SPI transaction with chip select held low. Below it is the hardware.",
+    "profile": "overview",
+    "width": 1200,
+    "source": "docs/diagrams/figures/driver-layers.py",
+    "sources": [
+      "inc/at25040.hpp:Device members",
+      "inc/at25040_spi_interface.hpp:SpiInterface"
+    ]
+  }
+}

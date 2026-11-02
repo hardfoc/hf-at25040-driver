@@ -1,0 +1,17 @@
+{
+  "methods": [
+    "LastRdsr()",
+    "ReadStatus()",
+    "Probe()",
+    "Read()",
+    "WriteEnable()",
+    "WritePage()"
+  ],
+  "port_hooks": [
+    "transfer"
+  ],
+  "sources": [
+    "inc/at25040.hpp:Device members",
+    "inc/at25040_spi_interface.hpp:SpiInterface"
+  ]
+}
