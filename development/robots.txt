@@ -1,1 +1,0 @@
-Sitemap: https://hardfoc.github.io/hf-at25040-driver/development/sitemap.xml
