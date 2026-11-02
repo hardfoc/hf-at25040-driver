@@ -41,6 +41,19 @@ public:
   /** Data bytes per READ transaction; Read() splits longer requests into chunks of this size. */
   static constexpr uint16_t kReadChunkBytes = 16;
 
+  /** Default WaitReady() budget: twice the 5 ms maximum tWC (datasheet Table 4-3). */
+  static constexpr uint32_t kWriteCycleTimeoutMs = 10;
+
+  /** Delay between two RDSR polls in WaitReady() when the port has `delay_us()`. */
+  static constexpr uint32_t kPollIntervalUs = 100;
+
+  /**
+   * RDSR polls per millisecond of WaitReady() budget when the port has no `delay_us()`. One RDSR is
+   * 16 SCK periods plus tCS: 0.9 us at the 20 MHz maximum clock (datasheet Table 4-3), so this many
+   * polls last at least 1 ms on any legal bus; on a slower bus the wait is proportionally longer.
+   */
+  static constexpr uint32_t kPollsPerMsWithoutDelay = 1112;
+
   [[nodiscard]] uint8_t LastRdsr() const noexcept {
     return last_rdsr_;
   }
@@ -116,13 +129,57 @@ public:
     return Status::Ok;
   }
 
+  /**
+   * @brief Poll RDSR until RDY (bit 0) reads 0: the internal write cycle has ended.
+   *
+   * The chip ignores every instruction except RDSR during a write cycle, and RDY = 1 while it runs
+   * (datasheet section 6, Write Sequence, and Table 6-3). If the port has an optional
+   * `void delay_us(uint32_t us)` member, the driver waits kPollIntervalUs between polls; otherwise
+   * it polls back to back, kPollsPerMsWithoutDelay times per millisecond of `timeout_ms`.
+   *
+   * @param timeout_ms Budget; the default covers the 5 ms maximum tWC with margin.
+   * @return Status::Ok when ready, Status::Timeout if a transfer failed or RDY was still 1 (also
+   * what a floating MISO, which reads 0xFF, looks like) at the end of the budget.
+   */
+  Status WaitReady(uint32_t timeout_ms = kWriteCycleTimeoutMs) noexcept {
+    constexpr bool kHasDelay = detail::HasDelayUs<Spi>::value;
+    const uint32_t polls = kHasDelay ? (timeout_ms * 1000u) / kPollIntervalUs + 1u
+                                     : timeout_ms * kPollsPerMsWithoutDelay + 1u;
+    for (uint32_t i = 0; i < polls; ++i) {
+      uint8_t sr = 0xFF;
+      if (ReadStatus(sr) != Status::Ok) {
+        return Status::Timeout;
+      }
+      if ((sr & kSrWip) == 0u) {
+        return Status::Ok;
+      }
+      if constexpr (kHasDelay) {
+        if (i + 1u < polls) {
+          spi_.delay_us(kPollIntervalUs);
+        }
+      }
+    }
+    return Status::Timeout;
+  }
+
   Status WriteEnable() noexcept {
     uint8_t tx = kCmdWren;
     uint8_t rx = 0xFF;
     return spi_.transfer(&tx, &rx, 1, kTimeoutMs) ? Status::Ok : Status::Timeout;
   }
 
-  /** @brief Single-page write (≤ 8 bytes, must not cross a page). */
+  /**
+   * @brief WREN + WRITE of 1 to 8 bytes inside one 8-byte page, then wait for the write cycle.
+   *
+   * Only the three low address bits increment during a WRITE, so bytes past the end of a page would
+   * wrap to its start (datasheet section 6, Write Sequence, p. 9): a range that crosses a page is
+   * refused. Programming starts when CS goes high; the call then polls RDSR (WaitReady()) and
+   * returns when the chip is ready again, so the next call is not ignored.
+   *
+   * @return Status::Arg for a null `src`, a length of 0 or above kPageSizeBytes, a page crossing or
+   * a range past the array (nothing is sent). Status::Timeout if a transfer failed or the write
+   *         cycle did not end within kWriteCycleTimeoutMs.
+   */
   Status WritePage(uint16_t addr, const uint8_t* src, uint16_t len) noexcept {
     if (src == nullptr || len == 0u || len > kPageSizeBytes) {
       return Status::Arg;
@@ -146,6 +203,32 @@ public:
     }
     if (!spi_.transfer(tx, rx, static_cast<std::size_t>(2u + len), kTimeoutMs)) {
       return Status::Timeout;
+    }
+    return WaitReady();
+  }
+
+  /**
+   * @brief Write any range inside the array: split at 8-byte page boundaries, one WritePage() (and
+   *        one write cycle) per page.
+   *
+   * @return Status::Arg for a null `src`, `len == 0` or a range past 0x1FF (nothing is sent);
+   *         otherwise the first non-Ok status of a page write. Pages before it are written.
+   */
+  Status Write(uint16_t addr, const uint8_t* src, uint16_t len) noexcept {
+    if (src == nullptr || len == 0u || addr >= kCapacityBytes ||
+        len > static_cast<uint16_t>(kCapacityBytes - addr)) {
+      return Status::Arg;
+    }
+    while (len > 0u) {
+      const uint16_t room = static_cast<uint16_t>(kPageSizeBytes - (addr % kPageSizeBytes));
+      const uint16_t n = len < room ? len : room;
+      const Status st = WritePage(addr, src, n);
+      if (st != Status::Ok) {
+        return st;
+      }
+      addr = static_cast<uint16_t>(addr + n);
+      src += n;
+      len = static_cast<uint16_t>(len - n);
     }
     return Status::Ok;
   }

@@ -44,9 +44,9 @@ void probe_during_a_write_cycle_reads_0xff() {
   // The datasheet: all status bits read 1 during the internal write cycle, so Probe() sees 0xFF.
   MockAt25040 chip;
   Device eep(chip);
-  const uint8_t b = 0x5A;
-  CHECK(eep.WritePage(0, &b, 1) == Status::Ok);
+  chip.startWriteCycle();
   CHECK(eep.Probe() == Status::Absent);
+  CHECK(eep.LastRdsr() == 0xFF);
 }
 
 void read_puts_a8_in_the_opcode() {
@@ -121,20 +121,88 @@ void read_reports_a_failed_chunk() {
   CHECK(eep.Read(0, buf, 40) == Status::Timeout);
 }
 
-void write_page_returns_before_the_write_cycle_ends() {
+void write_page_waits_for_the_write_cycle() {
+  // Programming starts on CS high; RDY stays 1 for up to tWC (8707F section 6, Table 4-3).
   MockAt25040 chip;
   Device eep(chip);
   const uint8_t data[8] = {1, 2, 3, 4, 5, 6, 7, 8};
   CHECK(eep.WritePage(0x108, data, 8) == Status::Ok);
-  CHECK(chip.last_opcode == 0x0A);
+  CHECK(chip.writes == 1);
   CHECK(std::memcmp(&chip.mem[0x108], data, 8) == 0);
-  uint8_t sr = 0;
+  CHECK(!chip.busy()); // the write cycle is over when WritePage() returns
+  CHECK(chip.now_ns >= 3000000u);
+  uint8_t sr = 0xFF;
   CHECK(eep.ReadStatus(sr) == Status::Ok);
-  CHECK((sr & at25040::kSrWip) != 0); // the caller polls for the end of the write cycle
-  for (int i = 0; i < 10 && (sr & at25040::kSrWip) != 0; ++i) {
-    CHECK(eep.ReadStatus(sr) == Status::Ok);
-  }
   CHECK(sr == 0x00); // ready, WEL cleared by the chip
+  CHECK(chip.ignored == 0);
+}
+
+void write_page_sleeps_through_the_port_delay_hook() {
+  MockAt25040Timed chip;
+  at25040::Device<MockAt25040Timed> eep(chip);
+  const uint8_t b = 0x42;
+  const std::size_t before = chip.transfers;
+  CHECK(eep.WritePage(0x010, &b, 1) == Status::Ok);
+  CHECK(!chip.busy());
+  CHECK(chip.delays > 0);
+  CHECK(chip.transfers - before < 40); // ~3 ms in 100 us steps, not a busy loop
+  CHECK(chip.mem[0x010] == 0x42);
+}
+
+void wait_ready_times_out_on_a_stuck_write_cycle() {
+  MockAt25040Timed chip;
+  at25040::Device<MockAt25040Timed> eep(chip);
+  chip.write_cycle_us = 1000000; // never ends within the budget
+  chip.startWriteCycle();
+  CHECK(eep.WaitReady() == Status::Timeout);
+  CHECK(chip.busy());
+  CHECK(chip.now_ns >= 10000000u); // waited the whole kWriteCycleTimeoutMs
+  CHECK(chip.now_ns < 20000000u);
+
+  MockAt25040 untimed; // no delay hook: a bounded number of polls
+  Device eep2(untimed);
+  untimed.write_cycle_us = 1000000;
+  untimed.startWriteCycle();
+  CHECK(eep2.WaitReady(1) == Status::Timeout);
+  CHECK(untimed.transfers == Device::kPollsPerMsWithoutDelay + 1u);
+
+  MockAt25040 floating; // MISO pulled up: RDY reads 1 forever
+  Device eep3(floating);
+  floating.bus = MockAt25040::Bus::Floating;
+  CHECK(eep3.WaitReady(1) == Status::Timeout);
+  floating.bus = MockAt25040::Bus::Broken;
+  CHECK(eep3.WaitReady() == Status::Timeout);
+  CHECK(eep3.WaitReady(0) == Status::Timeout); // one poll at least
+}
+
+void write_page_reports_a_write_cycle_that_does_not_end() {
+  MockAt25040 chip;
+  Device eep(chip);
+  chip.write_cycle_us = 1000000;
+  const uint8_t b = 0x42;
+  CHECK(eep.WritePage(0, &b, 1) == Status::Timeout);
+}
+
+void write_splits_at_page_boundaries() {
+  // 8-byte pages: only A2:A0 increment during a WRITE (8707F section 6, Write Sequence).
+  MockAt25040 chip;
+  Device eep(chip);
+  uint8_t data[20];
+  for (int i = 0; i < 20; ++i) {
+    data[i] = static_cast<uint8_t>(0x80 + i);
+  }
+  CHECK(eep.Write(0x0FC, data, 20) == Status::Ok); // 0x0FC-0x10F: pages 0x0F8, 0x100, 0x108
+  CHECK(chip.writes == 3);
+  CHECK(chip.ignored == 0);
+  CHECK(std::memcmp(&chip.mem[0x0FC], data, 20) == 0);
+  CHECK(chip.mem[0x0FB] == 0xFF);
+  CHECK(chip.mem[0x110] == 0xFF);
+  CHECK(chip.max_len <= 2u + at25040::kPageSizeBytes);
+
+  CHECK(eep.Write(0, nullptr, 1) == Status::Arg);
+  CHECK(eep.Write(0, data, 0) == Status::Arg);
+  CHECK(eep.Write(0x1FC, data, 5) == Status::Arg);
+  CHECK(chip.writes == 3);
 }
 
 void write_page_rejects_page_crossings() {
@@ -158,7 +226,11 @@ int main() {
   read_returns_every_byte_requested();
   read_streams_the_whole_array_across_a8();
   read_reports_a_failed_chunk();
-  write_page_returns_before_the_write_cycle_ends();
+  write_page_waits_for_the_write_cycle();
+  write_page_sleeps_through_the_port_delay_hook();
+  wait_ready_times_out_on_a_stuck_write_cycle();
+  write_page_reports_a_write_cycle_that_does_not_end();
+  write_splits_at_page_boundaries();
   write_page_rejects_page_crossings();
   if (failures != 0) {
     std::printf("%d check(s) failed\n", failures);

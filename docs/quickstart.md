@@ -50,11 +50,11 @@ What each step does:
    byte and show no write in progress.
 2. `WritePage()` sends WREN, then WRITE with the address and up to eight bytes inside one page. The chip starts its
    internal write cycle when CS goes high.
-3. The loop polls the status register until bit 0 (WIP) clears. The driver does not wait for you: a read or a
-   second write during the write cycle is ignored by the chip.
+3. `WritePage()` then polls the status register until bit 0 (RDY) clears, at most 10 ms: during the write cycle the
+   chip ignores everything except RDSR.
 4. `Read()` sends READ and the address and returns the bytes asked for, from any range inside the array.
 
-`platform_delay_us()` stands for your SDK's microsecond delay. This example is built by the host CI, so it
+This example is built by the host CI, so it
 compiles against the current headers.
 
 ## If it does not work

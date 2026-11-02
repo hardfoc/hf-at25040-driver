@@ -25,19 +25,10 @@ bool attach(Eeprom& eeprom) {
 // --8<-- [end:probe]
 
 // --8<-- [start:wait]
-// Poll RDSR until the write cycle ends. tWC is 5 ms max; 100 x 100 us leaves a margin.
-at25040::Status wait_ready(Eeprom& eeprom) {
-  for (int i = 0; i < 100; ++i) {
-    uint8_t sr = 0xFF;
-    if (eeprom.ReadStatus(sr) != at25040::Status::Ok) {
-      return at25040::Status::Timeout;
-    }
-    if ((sr & at25040::kSrWip) == 0) {
-      return at25040::Status::Ok;
-    }
-    platform_delay_us(100);
-  }
-  return at25040::Status::Busy;
+// After an MCU reset the chip may still be finishing a write the old firmware started. WaitReady()
+// polls RDSR until RDY clears (default budget 10 ms, twice the 5 ms tWC).
+bool start_up(Eeprom& eeprom) {
+  return eeprom.WaitReady() == at25040::Status::Ok && eeprom.Probe() == at25040::Status::Ok;
 }
 // --8<-- [end:wait]
 
@@ -49,25 +40,9 @@ at25040::Status read_settings(Eeprom& eeprom, uint8_t (&settings)[64]) {
 // --8<-- [end:read]
 
 // --8<-- [start:write]
-// WritePage() writes inside one 8-byte page. Split a longer write at page boundaries and wait after
-// each page.
-at25040::Status write_block(Eeprom& eeprom, uint16_t addr, const uint8_t* src, uint16_t len) {
-  while (len > 0) {
-    const uint16_t room =
-        static_cast<uint16_t>(at25040::kPageSizeBytes - (addr % at25040::kPageSizeBytes));
-    const uint16_t n = len < room ? len : room;
-    at25040::Status st = eeprom.WritePage(addr, src, n);
-    if (st == at25040::Status::Ok) {
-      st = wait_ready(eeprom);
-    }
-    if (st != at25040::Status::Ok) {
-      return st;
-    }
-    addr = static_cast<uint16_t>(addr + n);
-    src += n;
-    len = static_cast<uint16_t>(len - n);
-  }
-  return at25040::Status::Ok;
+// Write() splits the range at 8-byte page boundaries and waits for each page's write cycle.
+at25040::Status store_serial(Eeprom& eeprom, const uint8_t (&serial)[12]) {
+  return eeprom.Write(0x0FC, serial, sizeof(serial)); // pages 0x0F8, 0x100 and 0x108
 }
 // --8<-- [end:write]
 
@@ -99,7 +74,7 @@ at25040::Status set_protection(Eeprom& eeprom, MySpi& spi, uint8_t level) {
   if (!spi.transfer(tx, rx, sizeof(tx), 20)) {
     return at25040::Status::Timeout;
   }
-  return wait_ready(eeprom); // BP1/BP0 are non-volatile: a WRSR takes a write cycle
+  return eeprom.WaitReady(); // BP1/BP0 are non-volatile: a WRSR takes a write cycle
 }
 // --8<-- [end:raw]
 

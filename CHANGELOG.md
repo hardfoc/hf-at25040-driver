@@ -8,10 +8,19 @@ code that used the affected API.
 
 ### Added
 
+- `WaitReady(timeout_ms)`: polls RDSR until RDY clears, `Timeout` after the budget (default
+  `kWriteCycleTimeoutMs` = 10 ms, twice the 5 ms t<sub>WC</sub>).
+- `Write(addr, src, len)`: any range inside the array, split at 8-byte page boundaries, waiting after each page.
+- Optional port hook `void delay_us(uint32_t us)`, detected at compile time: `WaitReady()` sleeps 100 µs between
+  polls when it is there, and polls a bounded number of times when it is not.
 - Host unit tests (`-DHF_AT25040_BUILD_TESTS=ON`) against a model of the AT25040B, and a CI workflow.
 
 ### Changed
 
+- **BREAKING** (behaviour): `WritePage()` waits for the internal write cycle before it returns (up to 5 ms, at most
+  10 ms before it gives up with `Timeout`). It used to return as soon as the data was sent, so a following call
+  inside t<sub>WC</sub> was silently ignored by the chip. Polling loops after `WritePage()` still work but are no
+  longer needed. `Timeout` now also means "write cycle did not end within the budget".
 - `Read()` returns every byte requested. It used to shorten any `len` above 16 to 16 and still return `Ok`; it
   now splits the range into READ transactions of up to `Device::kReadChunkBytes` (16) data bytes, recomputes A8
   for each, and returns `Arg` for a range past `0x1FF`. Code that read in 16-byte chunks keeps working.

@@ -1,6 +1,6 @@
 # Porting
 
-Run the driver on a new MCU by writing one class with one method: the SPI transfer.
+Run the driver on a new MCU by writing one class with one method, the SPI transfer, and optionally a delay.
 
 The driver never calls your SDK directly. It calls `transfer()` on a class you derive from
 `at25040::SpiInterface<Self>` (in [`inc/at25040_spi_interface.hpp`](../inc/at25040_spi_interface.hpp)). The base
@@ -47,6 +47,17 @@ Rules the transfer must follow:
 - **Full duplex.** Fill `rx` with what came back on MISO; `Probe()` and `Read()` read their results from it.
 - **Return `false` only for a bus failure.** A missing chip is the driver's job: it shows up as `0xFF` bytes.
 
+## Optional delay hook
+
+```cpp
+void delay_us(uint32_t us);   // sleep at least us microseconds
+```
+
+The driver detects this member at compile time. With it, `WaitReady()` (and so every write) sleeps 100 µs between
+status polls; an RTOS port can yield there. Without it, the driver polls back to back for a bounded number of polls
+(`kPollsPerMsWithoutDelay` per millisecond of budget) that lasts at least the budget even at 20 MHz, so a write
+still waits for its write cycle, but keeps the bus busy while it does.
+
 ## Chip select and shared buses
 
 Drive CS from the SPI peripheral (ESP-IDF `spics_io_num`, STM32 hardware NSS) or toggle a GPIO around the transfer.
@@ -67,7 +78,7 @@ returns `false` until you connect it to `spi_device_transmit()` for your board. 
    the driver instantiated over it.
 2. Call `Probe()` and log `LastRdsr()`. A ready AT25040B with no protection reads `0x00`; `0xFF` means nothing
    answered.
-3. Write one page, wait for WIP to clear, read it back.
+3. Write one page (`WritePage()` waits for the write cycle), read it back.
 4. Read across `0x0FF`/`0x100` in two calls to prove A8 reaches the chip: the two halves must hold different data.
 
 ## Threads

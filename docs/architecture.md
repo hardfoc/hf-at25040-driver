@@ -38,24 +38,30 @@ sequenceDiagram
     D->>P: transfer([0x0A, 0x10, d0..d3], 6 bytes)
     P->>E: WRITE, A8 in the opcode
     P-->>D: true
-    D-->>A: Status::Ok (write cycle now running in the chip)
+    loop until RDY = 0 (at most 10 ms)
+        D->>P: transfer([0x05, 0x00], 2 bytes)
+        P->>E: RDSR
+        D->>P: delay_us(100), if the port has it
+    end
+    D-->>A: Status::Ok (write cycle finished)
 ```
 
-Each driver call is one or two `transfer()` calls; each `transfer()` is one CS-low period. The driver passes a
-20 ms timeout to every transfer and never waits on its own.
+Each `transfer()` is one CS-low period, and the driver passes a 20 ms timeout to every transfer. Reads and status
+calls are one transfer per 16 data bytes; writes add the status polls of the write cycle.
 
 ## Why CRTP
 
 The interface is a class template parameter, not a virtual base class. The compiler sees your port's `transfer()`
-directly and inlines it; the driver has no vtable, allocates nothing and needs no RTTI. The cost is that the
-driver type names the port: `Device<MySpi>`. Code that has to work with several port types takes the driver as a
-template parameter too.
+(and `delay_us()`, if it has one, detected at compile time) directly and inlines it; the driver has no vtable,
+allocates nothing and needs no RTTI. The cost is that the driver type names the port: `Device<MySpi>`. Code that has
+to work with several port types takes the driver as a template parameter too.
 
-## No hidden waits, no hidden state
+## Bounded waits, no hidden state
 
 The driver keeps one byte of state: the last status register value (`LastRdsr()`). It does not track the write
-cycle, the write-enable latch or the protection level; the chip does, and `ReadStatus()` reads them. That keeps
-every call's cost visible: one call, at most two transactions, no delay.
+cycle, the write-enable latch or the protection level; the chip does, and `ReadStatus()` reads them. The only wait
+is the write cycle: a write returns when RDSR shows the chip ready again, or with `Timeout` after
+`kWriteCycleTimeoutMs` (10 ms).
 
 ## Source map
 
