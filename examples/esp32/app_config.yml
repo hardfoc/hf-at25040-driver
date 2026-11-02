@@ -11,7 +11,7 @@ metadata:
 
 apps:
   at25040_esp32_example:
-    description: "AT25040 SPI EEPROM on ESP32-C6: CRTP SPI adapter, Probe() and driver version"
+    description: "AT25040 SPI EEPROM on ESP32-C6: spi_master port, probe, multi-page write and read back"
     source_file: "at25040_esp32_example.cpp"
     category: "example"
     idf_versions: ["release/v5.5"]
@@ -20,8 +20,9 @@ apps:
     featured: true
     hardware_required: true
     features:
-      - "CRTP SPI adapter skeleton (wire transfer() to spi_device_transmit for your board)"
-      - "Hardware-absent safe Probe()"
+      - "ESP-IDF spi_master port: one full-duplex transaction per transfer(), mode 0, 5 MHz"
+      - "Optional delay_us() hook for the write-cycle wait"
+      - "Hardware-absent safe Probe(), block protection level, Write() across pages and A8, Read() of the array"
 
 build_config:
   build_types:

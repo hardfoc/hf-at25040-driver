@@ -4,11 +4,19 @@
     "ReadStatus()",
     "Probe()",
     "Read()",
+    "WaitReady()",
     "WriteEnable()",
-    "WritePage()"
+    "WriteDisable()",
+    "SetBlockProtection()",
+    "GetBlockProtection()",
+    "WritePage()",
+    "Write()"
   ],
   "port_hooks": [
     "transfer"
+  ],
+  "optional_hooks": [
+    "delay_us"
   ],
   "sources": [
     "inc/at25040.hpp:Device members",

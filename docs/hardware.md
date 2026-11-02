@@ -70,14 +70,14 @@ Match VCC to the MCU's I/O voltage: the inputs need V<sub>IH</sub> of at least 0
 
 ## Write protection
 
-Three mechanisms stop a write; all of them make `WritePage()` look successful while nothing is stored, because the
-chip does not report a refused write.
+Three mechanisms stop a write; all of them make `WritePage()` and `SetBlockProtection()` look successful while
+nothing is stored, because the chip does not report a refused write.
 
 | Mechanism | Effect |
 | --- | --- |
 | WP pin low (board) | Every write and WREN is ignored |
-| Write-enable latch clear (power-up, WRDI, end of every write cycle) | The next WRITE is ignored; `WritePage()` sends WREN first |
-| Block protection BP1:BP0 (WRSR, non-volatile) | `01`: `0x180`-`0x1FF`, `10`: `0x100`-`0x1FF`, `11`: all read-only |
+| Write-enable latch clear (power-up, WRDI / `WriteDisable()`, end of every write cycle) | The next WRITE is ignored; `WritePage()` sends WREN first |
+| Block protection BP1:BP0 (WRSR / `SetBlockProtection()`, non-volatile) | `01`: `0x180`-`0x1FF`, `10`: `0x100`-`0x1FF`, `11`: all read-only |
 
 [API guide](api-guide.md#status-and-block-protection) shows how to read and set the protection level.
 

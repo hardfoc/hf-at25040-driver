@@ -25,59 +25,24 @@ bool attach(Eeprom& eeprom) {
 // --8<-- [end:probe]
 
 // --8<-- [start:wait]
-// Poll RDSR until the write cycle ends. tWC is 5 ms max; 100 x 100 us leaves a margin.
-at25040::Status wait_ready(Eeprom& eeprom) {
-  for (int i = 0; i < 100; ++i) {
-    uint8_t sr = 0xFF;
-    if (eeprom.ReadStatus(sr) != at25040::Status::Ok) {
-      return at25040::Status::Timeout;
-    }
-    if ((sr & at25040::kSrWip) == 0) {
-      return at25040::Status::Ok;
-    }
-    platform_delay_us(100);
-  }
-  return at25040::Status::Busy;
+// After an MCU reset the chip may still be finishing a write the old firmware started. WaitReady()
+// polls RDSR until RDY clears (default budget 10 ms, twice the 5 ms tWC).
+bool start_up(Eeprom& eeprom) {
+  return eeprom.WaitReady() == at25040::Status::Ok && eeprom.Probe() == at25040::Status::Ok;
 }
 // --8<-- [end:wait]
 
 // --8<-- [start:read]
-// Read() moves at most 16 bytes per call, so read longer blocks in chunks.
-at25040::Status read_block(Eeprom& eeprom, uint16_t addr, uint8_t* dst, uint16_t len) {
-  while (len > 0) {
-    const uint16_t n = len < 16 ? len : 16;
-    const at25040::Status st = eeprom.Read(addr, dst, n);
-    if (st != at25040::Status::Ok) {
-      return st;
-    }
-    addr = static_cast<uint16_t>(addr + n);
-    dst += n;
-    len = static_cast<uint16_t>(len - n);
-  }
-  return at25040::Status::Ok;
+// Read() streams any range inside the array; the driver splits it into READ transactions.
+at25040::Status read_settings(Eeprom& eeprom, uint8_t (&settings)[64]) {
+  return eeprom.Read(0x100, settings, sizeof(settings)); // 0x100-0x13F, A8 set by the driver
 }
 // --8<-- [end:read]
 
 // --8<-- [start:write]
-// WritePage() writes inside one 8-byte page. Split a longer write at page boundaries and wait after
-// each page.
-at25040::Status write_block(Eeprom& eeprom, uint16_t addr, const uint8_t* src, uint16_t len) {
-  while (len > 0) {
-    const uint16_t room =
-        static_cast<uint16_t>(at25040::kPageSizeBytes - (addr % at25040::kPageSizeBytes));
-    const uint16_t n = len < room ? len : room;
-    at25040::Status st = eeprom.WritePage(addr, src, n);
-    if (st == at25040::Status::Ok) {
-      st = wait_ready(eeprom);
-    }
-    if (st != at25040::Status::Ok) {
-      return st;
-    }
-    addr = static_cast<uint16_t>(addr + n);
-    src += n;
-    len = static_cast<uint16_t>(len - n);
-  }
-  return at25040::Status::Ok;
+// Write() splits the range at 8-byte page boundaries and waits for each page's write cycle.
+at25040::Status store_serial(Eeprom& eeprom, const uint8_t (&serial)[12]) {
+  return eeprom.Write(0x0FC, serial, sizeof(serial)); // pages 0x0F8, 0x100 and 0x108
 }
 // --8<-- [end:write]
 
@@ -94,24 +59,29 @@ void print_status(Eeprom& eeprom) {
 }
 // --8<-- [end:status]
 
-// --8<-- [start:raw]
-// Block protection (WRSR) is not wrapped by the driver: send it through your port.
-// level: 0 none, 1 = 0x180-0x1FF, 2 = 0x100-0x1FF, 3 = whole array. WP must be high.
-at25040::Status set_protection(Eeprom& eeprom, MySpi& spi, uint8_t level) {
-  if (level > 3) {
-    return at25040::Status::Arg;
+// --8<-- [start:protect]
+// Make the top half (0x100-0x1FF: board ID, calibration) read-only. WP must be high.
+bool lock_identity(Eeprom& eeprom) {
+  at25040::BlockProtect level = at25040::BlockProtect::None;
+  if (eeprom.GetBlockProtection(level) == at25040::Status::Ok &&
+      level == at25040::BlockProtect::UpperHalf) {
+    return true; // already locked
   }
-  if (eeprom.WriteEnable() != at25040::Status::Ok) {
-    return at25040::Status::Timeout;
+  if (eeprom.SetBlockProtection(at25040::BlockProtect::UpperHalf) != at25040::Status::Ok) {
+    return false; // Busy, Timeout
   }
-  const uint8_t tx[2] = {at25040::kCmdWrsr, static_cast<uint8_t>(level << 2)};
-  uint8_t rx[2] = {};
-  if (!spi.transfer(tx, rx, sizeof(tx), 20)) {
-    return at25040::Status::Timeout;
-  }
-  return wait_ready(eeprom); // BP1/BP0 are non-volatile: a WRSR takes a write cycle
+  // The chip ignores WRSR when WP is low, so read the level back.
+  return eeprom.GetBlockProtection(level) == at25040::Status::Ok &&
+         level == at25040::BlockProtect::UpperHalf;
 }
-// --8<-- [end:raw]
+// --8<-- [end:protect]
+
+// --8<-- [start:disable]
+// Clear the write-enable latch after a WREN you sent for your own instruction.
+void abandon_write(Eeprom& eeprom) {
+  (void)eeprom.WriteDisable(); // WRDI; Busy if a write cycle is still running
+}
+// --8<-- [end:disable]
 
 // --8<-- [start:errors]
 const char* describe(at25040::Status st) {
@@ -119,11 +89,11 @@ const char* describe(at25040::Status st) {
   case at25040::Status::Ok:
     return "ok";
   case at25040::Status::Timeout:
-    return "SPI transfer failed";
+    return "SPI transfer failed, or write cycle too long";
   case at25040::Status::Absent:
     return "no chip answered";
   case at25040::Status::Busy:
-    return "write cycle in progress";
+    return "write cycle in progress, try again";
   case at25040::Status::Arg:
     return "bad pointer, length or address";
   }

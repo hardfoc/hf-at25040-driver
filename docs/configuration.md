@@ -25,14 +25,21 @@ in [`inc/at25040_registers.hpp`](../inc/at25040_registers.hpp) or a value in the
 | `kCmdWren` ... `kCmdWrite` | `0x06`, `0x04`, `0x05`, `0x01`, `0x03`, `0x02` | Instructions ([Protocol](protocol.md)) |
 | `kSrWip`, `kSrWel`, `kSrBp0`, `kSrBp1` | `0x01`, `0x02`, `0x04`, `0x08` | Status register bits |
 
-Two limits live inside `Device` and are not configurable: every transfer gets a 20 ms timeout, and `Read()` moves at
-most 16 bytes per call.
+Limits inside `Device`:
+
+| Constant | Value | Meaning |
+| --- | --- | --- |
+| (transfer timeout) | 20 ms | `timeout_ms` passed to every `transfer()` |
+| `Device::kReadChunkBytes` | `16` | Data bytes per READ transaction; `Read()` splits longer reads |
+| `Device::kWriteCycleTimeoutMs` | `10` | Default `WaitReady()` budget, used by every write: twice the 5 ms t<sub>WC</sub> |
+| `Device::kPollIntervalUs` | `100` | Sleep between status polls when the port has `delay_us()` |
+| `Device::kPollsPerMsWithoutDelay` | `1112` | Polls per millisecond of budget without `delay_us()` (one RDSR is 0.9 µs at 20 MHz) |
 
 ## Block protection
 
 The protection level is stored in the chip (BP1:BP0, non-volatile) and survives power cycles. Set it once in
-production with WRSR, as the [API guide](api-guide.md#status-and-block-protection) shows, and read it at start-up
-with `ReadStatus()` if your firmware depends on it.
+production with `SetBlockProtection()`, as the [API guide](api-guide.md#status-and-block-protection) shows, and read
+it at start-up with `GetBlockProtection()` if your firmware depends on it.
 
 A common layout for board identity data: write the ID and calibration into the top half (`0x100`-`0x1FF`), then set
 level 2 so that half is read-only and the bottom half stays writable for settings.

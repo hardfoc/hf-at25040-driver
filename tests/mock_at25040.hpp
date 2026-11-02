@@ -5,7 +5,8 @@
  * Follows the datasheet (Atmel-8707F): opcodes 0000 A011 / 0000 A010 with A8 in bit 3, WEL set by
  * WREN and cleared at the end of a write cycle, 8-byte pages that wrap inside the page, reads that
  * wrap at the end of the array, and a status register that reads 0xFF during the internal write
- * cycle (modelled as a number of RDSR polls instead of time).
+ * cycle. Time is modelled: every transfer takes len * 8 SCK periods, MockAt25040Timed adds the
+ * optional delay_us() hook, and a write cycle lasts write_cycle_us (tWC, 5 ms max in Table 4-3).
  */
 #pragma once
 
@@ -22,18 +23,41 @@ public:
   std::array<uint8_t, 512> mem{};
   uint8_t bp = 0; ///< BP1:BP0, non-volatile
   bool wel = false;
-  int busy_polls = 0;        ///< RDSR polls left in the current write cycle
-  int write_cycle_polls = 3; ///< length of a write cycle, in RDSR polls
+  uint32_t sck_hz = 1000000;      ///< bus clock: sets how long each transfer takes
+  uint32_t write_cycle_us = 3000; ///< length of an internal write cycle (tWC)
+  uint64_t now_ns = 0;            ///< model time
+  uint64_t busy_until_ns = 0;     ///< end of the current write cycle, 0 when idle
   Bus bus = Bus::Chip;
   std::size_t transfers = 0;
+  std::size_t max_len = 0; ///< longest transfer seen
+  std::size_t writes = 0;  ///< write cycles started (WRITE and WRSR)
+  std::size_t ignored = 0; ///< instructions other than RDSR sent during a write cycle
   uint8_t last_opcode = 0;
 
   MockAt25040() {
     mem.fill(0xFF);
   }
 
+  /** True while an internal write cycle runs. */
+  bool busy() noexcept {
+    if (busy_until_ns != 0 && now_ns >= busy_until_ns) {
+      busy_until_ns = 0;
+      wel = false; // the chip returns to the write-disable state at the end of a write cycle
+    }
+    return busy_until_ns != 0;
+  }
+
+  /** Start a write cycle as a WRITE or WRSR would (also: one left running by a reset MCU). */
+  void startWriteCycle() noexcept {
+    busy_until_ns = now_ns + static_cast<uint64_t>(write_cycle_us) * 1000u;
+    ++writes;
+  }
+
   bool transfer(const uint8_t* tx, uint8_t* rx, std::size_t len, uint32_t /*timeout_ms*/) noexcept {
     ++transfers;
+    max_len = len > max_len ? len : max_len;
+    const bool was_busy = busy();
+    now_ns += static_cast<uint64_t>(len) * 8u * 1000000000u / sck_hz;
     if (bus == Bus::Broken) {
       return false;
     }
@@ -45,13 +69,11 @@ public:
     }
     last_opcode = tx[0];
     const uint8_t op = static_cast<uint8_t>(tx[0] & 0xF7u); // bit 3: X or A8
-    if (busy_polls > 0) {                                   // only RDSR works during a write cycle
+    if (was_busy) { // only RDSR works during a write cycle, and every status bit reads 1
       if (op == at25040::kCmdRdsr && len >= 2) {
-        --busy_polls;
         rx[1] = 0xFF;
-        if (busy_polls == 0) {
-          wel = false;
-        }
+      } else {
+        ++ignored;
       }
       return true;
     }
@@ -103,10 +125,6 @@ public:
   }
 
 private:
-  void startWriteCycle() noexcept {
-    busy_polls = write_cycle_polls;
-  }
-
   bool isProtected(uint16_t a) const noexcept {
     switch (bp) {
     case 1:
@@ -118,5 +136,16 @@ private:
     default:
       return false;
     }
+  }
+};
+
+/** The same chip behind a port that also has the optional delay_us() timing hook. */
+class MockAt25040Timed : public MockAt25040 {
+public:
+  std::size_t delays = 0;
+
+  void delay_us(uint32_t us) noexcept {
+    ++delays;
+    now_ns += static_cast<uint64_t>(us) * 1000u;
   }
 };

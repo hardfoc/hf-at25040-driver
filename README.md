@@ -37,16 +37,8 @@ int store_and_read_back(MySpi& spi) {
   }
 
   const uint8_t serial[4] = {0x12, 0x34, 0x56, 0x78};
-  if (eeprom.WritePage(0x010, serial, sizeof(serial)) != at25040::Status::Ok) { // 2. one page
-    return -2;
-  }
-
-  uint8_t sr = 0xFF; // 3. wait for the write cycle (5 ms max)
-  for (int i = 0; i < 100 && (sr & at25040::kSrWip) != 0; ++i) {
-    platform_delay_us(100);
-    if (eeprom.ReadStatus(sr) != at25040::Status::Ok) {
-      return -3;
-    }
+  if (eeprom.WritePage(0x010, serial, sizeof(serial)) != at25040::Status::Ok) { // 2. one page,
+    return -2; // 3. and its write cycle: WritePage() returns when the chip is ready again
   }
 
   uint8_t back[4] = {}; // 4. read it back
@@ -61,9 +53,12 @@ int store_and_read_back(MySpi& spi) {
 ## What it does
 
 - Detects the chip with a double status read that rejects a floating or looped-back bus (`Probe()`).
-- Reads up to 16 bytes and writes up to one 8-byte page per call, with A8 placed in the opcode for `0x100`-`0x1FF`.
+- Reads any range of the array and writes any range split at 8-byte pages (`Read()`, `Write()`, `WritePage()`), with
+  A8 placed in the opcode for `0x100`-`0x1FF`.
+- Waits for each write cycle (`WaitReady()`, bounded, optional `delay_us()` hook in the port) and returns `Busy`
+  instead of sending an instruction the chip would ignore during one.
+- Wraps WREN, WRDI and WRSR: `WriteEnable()`, `WriteDisable()`, `SetBlockProtection()` / `GetBlockProtection()`.
 - Checks pointers, lengths, ranges and page crossings before anything goes on the bus.
-- Exposes the status register for write-cycle polling and block protection (`ReadStatus()`).
 - No heap, no exceptions, no RTOS, no virtual calls (the port is a CRTP class).
 
 ## Install
