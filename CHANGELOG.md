@@ -32,7 +32,6 @@ code that used the affected API.
 - `Read()` returns every byte requested. It used to shorten any `len` above 16 to 16 and still return `Ok`; it
   now splits the range into READ transactions of up to `Device::kReadChunkBytes` (16) data bytes, recomputes A8
   for each, and returns `Arg` for a range past `0x1FF`. Code that read in 16-byte chunks keeps working.
-
 - Documentation moved to the HardFOC MkDocs platform: standard page set (quickstart, hardware, architecture, API
   guide, porting, testing), code snippets compiled by the host build from `tests/docs/`, Doxygen under `/api/`,
   versioned with mike. The Jekyll site files and the doxygen-awesome submodule are gone.

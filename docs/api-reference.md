@@ -8,9 +8,9 @@ Every class, function and constant of the driver, generated from the headers by 
 
 | Page | What it documents |
 | --- | --- |
-| [`at25040::Device`](api/classat25040_1_1_device.html) | The driver: probe, status, read, write |
+| [`at25040::Device`](api/classat25040_1_1_device.html) | The driver: probe, status, wait, read, write, block protection |
 | [`at25040::SpiInterface`](api/classat25040_1_1_spi_interface.html) | The SPI interface your port derives from |
-| [`at25040` namespace](api/namespaceat25040.html) | `Status`, opcodes, status bits, capacity and page size |
+| [`at25040` namespace](api/namespaceat25040.html) | `Status`, `BlockProtect`, opcodes, status bits, capacity and page size |
 | [`at25040_registers.hpp`](api/at25040__registers_8hpp.html) | The instruction set and status register constants |
 | [File list](api/files.html) | Every header |
 

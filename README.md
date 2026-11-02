@@ -53,9 +53,12 @@ int store_and_read_back(MySpi& spi) {
 ## What it does
 
 - Detects the chip with a double status read that rejects a floating or looped-back bus (`Probe()`).
-- Reads up to 16 bytes and writes up to one 8-byte page per call, with A8 placed in the opcode for `0x100`-`0x1FF`.
+- Reads any range of the array and writes any range split at 8-byte pages (`Read()`, `Write()`, `WritePage()`), with
+  A8 placed in the opcode for `0x100`-`0x1FF`.
+- Waits for each write cycle (`WaitReady()`, bounded, optional `delay_us()` hook in the port) and returns `Busy`
+  instead of sending an instruction the chip would ignore during one.
+- Wraps WREN, WRDI and WRSR: `WriteEnable()`, `WriteDisable()`, `SetBlockProtection()` / `GetBlockProtection()`.
 - Checks pointers, lengths, ranges and page crossings before anything goes on the bus.
-- Exposes the status register for write-cycle polling and block protection (`ReadStatus()`).
 - No heap, no exceptions, no RTOS, no virtual calls (the port is a CRTP class).
 
 ## Install
