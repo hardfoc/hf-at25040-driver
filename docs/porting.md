@@ -67,10 +67,11 @@ high. Keep t<sub>CSS</sub>, t<sub>CSH</sub> and t<sub>CS</sub> at 100 ns or more
 ## Reference implementation
 
 The ESP32 example's port in
-[`at25040_esp32_example.cpp`](../examples/esp32/main/at25040_esp32_example.cpp) is a skeleton: its `transfer()`
-returns `false` until you connect it to `spi_device_transmit()` for your board. With ESP-IDF's `spi_master`, one
-`spi_transaction_t` with `length = len * 8`, `tx_buffer = tx` and `rx_buffer = rx` on a device configured for mode
-0 is the whole port.
+[`at25040_esp32_example.cpp`](../examples/esp32/main/at25040_esp32_example.cpp) is a complete ESP-IDF `spi_master`
+port: one `spi_transaction_t` with `length = len * 8`, `tx_buffer = tx` and `rx_buffer = rx`, sent with
+`spi_device_polling_transmit()` on a device configured for mode 0 with CS on `spics_io_num`, and `delay_us()` on
+`esp_rom_delay_us()`. It does not use the ESP-IDF command or address phases: the driver puts the opcode (with A8 in
+bit 3) in `tx[0]` and the address byte in `tx[1]`.
 
 ## Check your port
 
