@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="841" viewBox="0 0 1200 841" role="img" aria-labelledby="driver-layers-title driver-layers-desc" font-family="Inter, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+<title id="driver-layers-title">Three layers, one of them yours</title>
+<desc id="driver-layers-desc">Layer diagram: the application calls the hardware-agnostic AT25040 Device and its member functions, which use the CRTP SPI interface, which calls the one transfer method of the platform port you write, which drives the SPI bus and chip select of the AT25040B.</desc>
+<defs><marker id="fk-arrow-rail" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6C7889"/></marker></defs>
+<rect x="0.5" y="0.5" width="1199" height="840" rx="16" fill="#0E131A" stroke="#283241"/>
+<text x="32" y="46.8" font-size="16" font-weight="700" letter-spacing="1.2" fill="#C7CBFF">ARCHITECTURE</text>
+<text x="32" y="85.6" font-size="32" font-weight="700" fill="#E8EDF3">Three layers, one of them yours</text>
+<text x="32" y="115.4" font-size="18" fill="#9AA6B5">The driver and the interface are the same on every MCU. The port is a class with one method.</text>
+<rect x="32" y="131.4" width="1136" height="1" fill="#252F3C"/>
+<rect x="32" y="278.4" width="1136" height="89" rx="16" fill="#1C1F3D" stroke="#3B4080" stroke-width="1.2"/>
+<path d="M600 242.4 L600 274.4" fill="none" stroke="#6C7889" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#fk-arrow-rail)"/>
+<path d="M600 371.4 L600 403.4" fill="none" stroke="#6C7889" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#fk-arrow-rail)"/>
+<path d="M600 525.4 L600 557.4" fill="none" stroke="#6C7889" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#fk-arrow-rail)"/>
+<path d="M600 653.4 L600 685.4" fill="none" stroke="#6C7889" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#fk-arrow-rail)"/>
+<rect x="32" y="149.4" width="1136" height="89" rx="12" fill="#151C26" stroke="#3A4657" stroke-width="1"/>
+<rect x="32" y="157.4" width="4" height="73" rx="2" fill="#94A3B8"/>
+<rect x="32" y="407.4" width="1136" height="114" rx="12" fill="#1C1F3D" stroke="#8C93FF" stroke-width="1.4"/>
+<rect x="32" y="415.4" width="4" height="98" rx="2" fill="#8C93FF"/>
+<rect x="32" y="561.4" width="1136" height="88" rx="12" fill="#0F2A28" stroke="#2DD4BF" stroke-width="1.4"/>
+<rect x="32" y="569.4" width="4" height="72" rx="2" fill="#2DD4BF"/>
+<rect x="32" y="689.4" width="1136" height="89" rx="12" fill="#151C26" stroke="#3A4657" stroke-width="1"/>
+<rect x="32" y="697.4" width="4" height="73" rx="2" fill="#94A3B8"/>
+<text x="56" y="184.4" font-size="20" font-weight="700" fill="#E8EDF3">Your application</text>
+<text x="56" y="215" font-size="17" fill="#D2DAE4">board ID, calibration constants, settings ...</text>
+<rect x="48" y="323.4" width="102.2" height="26" rx="13" fill="#1C1F3D" stroke="#3B4080" stroke-width="1"/>
+<text x="56" y="341.5" font-size="16" font-weight="700" fill="#C7CBFF">LastRdsr()</text>
+<rect x="158.2" y="323.4" width="124" height="26" rx="13" fill="#1C1F3D" stroke="#3B4080" stroke-width="1"/>
+<text x="166.2" y="341.5" font-size="16" font-weight="700" fill="#C7CBFF">ReadStatus()</text>
+<rect x="290.2" y="323.4" width="77.9" height="26" rx="13" fill="#1C1F3D" stroke="#3B4080" stroke-width="1"/>
+<text x="298.2" y="341.5" font-size="16" font-weight="700" fill="#C7CBFF">Probe()</text>
+<rect x="376" y="323.4" width="70.6" height="26" rx="13" fill="#1C1F3D" stroke="#3B4080" stroke-width="1"/>
+<text x="384" y="341.5" font-size="16" font-weight="700" fill="#C7CBFF">Read()</text>
+<rect x="454.6" y="323.4" width="130.3" height="26" rx="13" fill="#1C1F3D" stroke="#3B4080" stroke-width="1"/>
+<text x="462.6" y="341.5" font-size="16" font-weight="700" fill="#C7CBFF">WriteEnable()</text>
+<rect x="592.9" y="323.4" width="115.9" height="26" rx="13" fill="#1C1F3D" stroke="#3B4080" stroke-width="1"/>
+<text x="600.9" y="341.5" font-size="16" font-weight="700" fill="#C7CBFF">WritePage()</text>
+<text x="48" y="307.4" font-size="17" font-weight="700" fill="#C7CBFF">HARDWARE-AGNOSTIC CORE</text>
+<text x="326.2" y="307.4" font-size="16" fill="#C7CBFF">at25040::Device&lt;Spi&gt;, inc/at25040.hpp</text>
+<text x="56" y="442.4" font-size="20" font-weight="700" fill="#C7CBFF">Communication interface</text>
+<text x="56" y="473" font-size="17" fill="#D2DAE4">at25040::SpiInterface&lt;Derived&gt;: one full-duplex transaction per call,</text>
+<text x="56" y="497.7" font-size="17" fill="#D2DAE4">instructions and A8 placed by the driver, bounds and page checks before the bus</text>
+<text x="56" y="596.4" font-size="20" font-weight="700" fill="#A7F3E6">Platform port (your class)</text>
+<text x="56" y="625.6" font-size="16" font-family="'JetBrains Mono', 'SFMono-Regular', Menlo, Consolas, monospace" fill="#D2DAE4">transfer(tx, rx, len, timeout_ms)</text>
+<text x="56" y="724.4" font-size="20" font-weight="700" fill="#E8EDF3">AT25040B</text>
+<text x="56" y="755" font-size="17" fill="#D2DAE4">SPI mode 0 or 3, up to 5 / 10 / 20 MHz  /  CS, SO, SI, SCK, WP, HOLD</text>
+<rect x="32" y="790.8" width="14" height="14" rx="4" fill="#1C1F3D" stroke="#8C93FF" stroke-width="1.4"/>
+<text x="54" y="805.4" font-size="16" fill="#9AA6B5">this library</text>
+<rect x="161.8" y="790.8" width="14" height="14" rx="4" fill="#0F2A28" stroke="#2DD4BF" stroke-width="1.4"/>
+<text x="183.8" y="805.4" font-size="16" fill="#9AA6B5">you write</text>
+<rect x="282.1" y="790.8" width="14" height="14" rx="4" fill="#1B232E" stroke="#94A3B8" stroke-width="1.4"/>
+<text x="304.1" y="805.4" font-size="16" fill="#9AA6B5">hardware</text>
+</svg>
