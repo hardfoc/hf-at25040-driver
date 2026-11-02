@@ -69,7 +69,7 @@ exclude = [
   '^https://product\.tdk\.com/',
 
   # GitHub Pages for this repo — may 404 until the site is first published; README still links for humans
-  '^https://n3b3x\.github\.io/hf-mcp9700-driver/?.*',
+  '^https://hardfoc\.github\.io/hf-at25040-driver/?.*',
   # Manufacturer / IC vendor documentation URLs (frequently block automated crawlers)
   '^https?://(www\\.)?microchip\\.com/',
 ]

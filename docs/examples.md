@@ -1,11 +1,44 @@
----
-layout: default
-title: Examples
-parent: "📚 Documentation"
----
-
 # Examples
 
-`examples/esp32/` — ESP-IDF host that implements the SPI adapter and runs
-`Probe()` / `Read(0)`. Build with the shared `hf-espidf-project-tools` scripts
-submodule (same as sibling drivers).
+The ESP32 application that exercises the driver, and how to build it.
+
+It targets an ESP32-C6 DevKit. Its port is a skeleton: `transfer()` returns `false` until you connect it to your
+board's SPI bus, so out of the box it prints the driver version and `Probe()` reports `Absent`. CI builds the app
+below on each pull request.
+
+## The apps
+
+<!-- generated: examples -->
+| App | What it shows | Source | CI |
+| --- | --- | --- | --- |
+| `at25040_esp32_example` :material-star:{ title="featured" } | AT25040 SPI EEPROM on ESP32-C6: CRTP SPI adapter, Probe() and driver version | [`at25040_esp32_example.cpp`](../examples/esp32/main/at25040_esp32_example.cpp) | yes |
+
+Build and flash one (from `examples/esp32`, ESP-IDF environment loaded):
+
+```bash
+./scripts/build_app.sh at25040_esp32_example Release
+./scripts/flash_app.sh flash_monitor at25040_esp32_example Release
+```
+
+Source of this table: [`examples/esp32/app_config.yml`](../examples/esp32/app_config.yml).
+<!-- /generated -->
+
+## Set up once
+
+```bash
+git submodule update --init examples/esp32/scripts   # the HardFOC ESP-IDF build scripts
+cd examples/esp32
+. $IDF_PATH/export.sh                                 # ESP-IDF v5.5
+./scripts/build_app.sh list                           # every app and build type
+```
+
+The scripts read [`app_config.yml`](../examples/esp32/app_config.yml) (the same file this page's table comes
+from) and build each app as its own firmware image.
+
+## What to read in an example
+
+| You want to | Read |
+| --- | --- |
+| See the port class an ESP-IDF build needs | `Esp32At25040Spi` in `at25040_esp32_example.cpp` |
+| See how the component is pulled into an IDF project | [`components/hf_at25040/CMakeLists.txt`](../examples/esp32/components/hf_at25040/CMakeLists.txt) |
+| Read, write and wait in full | [`tests/docs/api_tasks.cpp`](../tests/docs/api_tasks.cpp) (compiled on the host) |

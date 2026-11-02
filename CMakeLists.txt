@@ -15,3 +15,10 @@ target_include_directories(${HF_AT25040_TARGET_NAME} INTERFACE ${HF_AT25040_PUBL
 target_compile_features(${HF_AT25040_TARGET_NAME} INTERFACE cxx_std_17)
 
 add_library(hf::at25040 ALIAS ${HF_AT25040_TARGET_NAME})
+
+# ── Host unit tests (mock EEPROM; no hardware) ───────────────────────────────
+option(HF_AT25040_BUILD_TESTS "Build the host unit tests in tests/" OFF)
+if(HF_AT25040_BUILD_TESTS)
+  enable_testing()
+  add_subdirectory(tests)
+endif()
