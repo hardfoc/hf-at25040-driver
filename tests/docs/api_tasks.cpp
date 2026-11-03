@@ -68,7 +68,7 @@ bool lock_identity(Eeprom& eeprom) {
     return true; // already locked
   }
   if (eeprom.SetBlockProtection(at25040::BlockProtect::UpperHalf) != at25040::Status::Ok) {
-    return false; // Busy, Timeout
+    return false; // Busy, BusError, Timeout
   }
   // The chip ignores WRSR when WP is low, so read the level back.
   return eeprom.GetBlockProtection(level) == at25040::Status::Ok &&
@@ -89,7 +89,9 @@ const char* describe(at25040::Status st) {
   case at25040::Status::Ok:
     return "ok";
   case at25040::Status::Timeout:
-    return "SPI transfer failed, or write cycle too long";
+    return "write cycle did not end in time";
+  case at25040::Status::BusError:
+    return "SPI transfer failed";
   case at25040::Status::Absent:
     return "no chip answered";
   case at25040::Status::Busy:

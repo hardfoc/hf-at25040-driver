@@ -22,12 +22,20 @@
 
 namespace at25040 {
 
+/**
+ * @brief Result of a driver call.
+ *
+ * `BusError` and `Timeout` are distinct: `BusError` means the port's `transfer()` returned
+ * false (the frame was not clocked: SPI driver error, bus timeout, ...); `Timeout` means the
+ * chip answered but a write cycle did not end within the WaitReady() budget (RDY still 1).
+ */
 enum class Status : uint8_t {
   Ok = 0,
-  Timeout = 1,
-  Absent = 2,
-  Busy = 3,
-  Arg = 4,
+  Timeout = 1,  ///< RDY still 1 at the end of the WaitReady() budget (a write cycle did not end)
+  Absent = 2,   ///< The bus answered, but not like an AT25040 (Probe())
+  Busy = 3,     ///< A write cycle is in progress; the chip would ignore the instruction
+  Arg = 4,      ///< Argument out of range; nothing was sent
+  BusError = 5, ///< The port's transfer() failed
 };
 
 /**
@@ -75,7 +83,7 @@ public:
     uint8_t rx[2] = {0xFF, 0xFF};
     if (!spi_.transfer(tx, rx, 2, kTimeoutMs)) {
       last_rdsr_ = 0xFF;
-      return Status::Timeout;
+      return Status::BusError;
     }
     sr = rx[1];
     last_rdsr_ = sr;
@@ -85,15 +93,19 @@ public:
   /**
    * @brief Double RDSR. Present if both match, not 0xFF, not the 0x05 echo,
    *        and WIP is clear.
+   * @return Status::Ok, Status::Busy (WIP set), Status::Absent (the bus answered with something
+   *         that is not an idle AT25040), or Status::BusError when a transfer failed.
    */
   Status Probe() noexcept {
     uint8_t a = 0xFF;
     uint8_t b = 0xFF;
-    if (ReadStatus(a) != Status::Ok) {
-      return Status::Absent;
+    const Status first = ReadStatus(a);
+    if (first != Status::Ok) {
+      return first; // BusError: the port could not talk, which is not the same as no chip
     }
-    if (ReadStatus(b) != Status::Ok) {
-      return Status::Absent;
+    const Status second = ReadStatus(b);
+    if (second != Status::Ok) {
+      return second;
     }
     last_rdsr_ = a;
     if (a != b || a == 0xFFu || a == kCmdRdsr) {
@@ -115,7 +127,7 @@ public:
    *
    * @return Status::Arg for a null `dst`, `len == 0` or a range past 0x1FF (no transfer is
    *         made; the chip would roll over to 0x000). Status::Busy if RDSR shows a write cycle in
-   *         progress (the chip would ignore the READ; nothing is read). Status::Timeout if a
+   *         progress (the chip would ignore the READ; nothing is read). Status::BusError if a
    *         transfer failed: the bytes of the chunks before it are in `dst`.
    */
   Status Read(uint16_t addr, uint8_t* dst, uint16_t len) noexcept {
@@ -134,7 +146,7 @@ public:
       tx[0] = Opcode(kCmdRead, addr);
       tx[1] = static_cast<uint8_t>(addr & 0xFFu);
       if (!spi_.transfer(tx, rx, static_cast<std::size_t>(2u + n), kTimeoutMs)) {
-        return Status::Timeout;
+        return Status::BusError;
       }
       for (uint16_t i = 0; i < n; ++i) {
         dst[i] = rx[2u + i];
@@ -155,8 +167,8 @@ public:
    * it polls back to back, kPollsPerMsWithoutDelay times per millisecond of `timeout_ms`.
    *
    * @param timeout_ms Budget; the default covers the 5 ms maximum tWC with margin.
-   * @return Status::Ok when ready, Status::Timeout if a transfer failed or RDY was still 1 (also
-   * what a floating MISO, which reads 0xFF, looks like) at the end of the budget.
+   * @return Status::Ok when ready, Status::BusError if a transfer failed, Status::Timeout if RDY
+   * was still 1 (also what a floating MISO, which reads 0xFF, looks like) at the end of the budget.
    */
   Status WaitReady(uint32_t timeout_ms = kWriteCycleTimeoutMs) noexcept {
     constexpr bool kHasDelay = detail::HasDelayUs<Spi>::value;
@@ -164,8 +176,9 @@ public:
                                      : timeout_ms * kPollsPerMsWithoutDelay + 1u;
     for (uint32_t i = 0; i < polls; ++i) {
       uint8_t sr = 0xFF;
-      if (ReadStatus(sr) != Status::Ok) {
-        return Status::Timeout;
+      const Status st = ReadStatus(sr);
+      if (st != Status::Ok) {
+        return st; // BusError
       }
       if ((sr & kSrWip) == 0u) {
         return Status::Ok;
@@ -182,7 +195,7 @@ public:
   /**
    * @brief WREN: set the write-enable latch (datasheet Table 6-1), before an instruction you send
    *        through your port. WritePage(), Write() and SetBlockProtection() send it themselves.
-   * @return Status::Busy during a write cycle (the chip would ignore it), Status::Timeout if a
+   * @return Status::Busy during a write cycle (the chip would ignore it), Status::BusError if a
    *         transfer failed.
    */
   Status WriteEnable() noexcept {
@@ -193,7 +206,7 @@ public:
   /**
    * @brief WRDI: clear the write-enable latch (datasheet Table 6-1), so no WRITE or WRSR is
    *        accepted until the next WREN. Independent of the WP pin.
-   * @return Status::Busy during a write cycle, Status::Timeout if a transfer failed.
+   * @return Status::Busy during a write cycle, Status::BusError if a transfer failed.
    */
   Status WriteDisable() noexcept {
     const Status ready = CheckReady();
@@ -208,8 +221,8 @@ public:
    * GetBlockProtection() if it matters.
    *
    * @return Status::Arg for a value outside BlockProtect, Status::Busy if a write cycle was
-   *         already running, Status::Timeout if a transfer failed or the write cycle did not end
-   *         in time.
+   *         already running, Status::BusError if a transfer failed, Status::Timeout if the write
+   *         cycle did not end in time.
    */
   Status SetBlockProtection(BlockProtect level) noexcept {
     const auto bits = static_cast<uint8_t>(level);
@@ -220,13 +233,14 @@ public:
     if (ready != Status::Ok) {
       return ready;
     }
-    if (SendInstruction(kCmdWren) != Status::Ok) {
-      return Status::Timeout;
+    const Status wren = SendInstruction(kCmdWren);
+    if (wren != Status::Ok) {
+      return wren;
     }
     const uint8_t tx[2] = {kCmdWrsr, static_cast<uint8_t>(bits << 2)};
     uint8_t rx[2] = {0xFF, 0xFF};
     if (!spi_.transfer(tx, rx, 2, kTimeoutMs)) {
-      return Status::Timeout;
+      return Status::BusError;
     }
     return WaitReady();
   }
@@ -234,12 +248,13 @@ public:
   /**
    * @brief RDSR, decoded: the current block protection level (datasheet Table 6-4).
    * @return Status::Busy during a write cycle (the status reads 0xFF; `level` is not changed),
-   *         Status::Timeout if the transfer failed.
+   *         Status::BusError if the transfer failed.
    */
   Status GetBlockProtection(BlockProtect& level) noexcept {
     uint8_t sr = 0xFF;
-    if (ReadStatus(sr) != Status::Ok) {
-      return Status::Timeout;
+    const Status st = ReadStatus(sr);
+    if (st != Status::Ok) {
+      return st;
     }
     if ((sr & kSrWip) != 0u) {
       return Status::Busy;
@@ -258,8 +273,8 @@ public:
    *
    * @return Status::Arg for a null `src`, a length of 0 or above kPageSizeBytes, a page
    *         crossing or a range past the array (nothing is sent). Status::Busy if RDSR shows a
-   *         write cycle already in progress (nothing is written). Status::Timeout if a transfer
-   *         failed or the write cycle did not end within kWriteCycleTimeoutMs.
+   *         write cycle already in progress (nothing is written). Status::BusError if a transfer
+   *         failed; Status::Timeout if the write cycle did not end within kWriteCycleTimeoutMs.
    */
   Status WritePage(uint16_t addr, const uint8_t* src, uint16_t len) noexcept {
     if (src == nullptr || len == 0u || len > kPageSizeBytes) {
@@ -276,8 +291,9 @@ public:
     if (ready != Status::Ok) {
       return ready;
     }
-    if (SendInstruction(kCmdWren) != Status::Ok) {
-      return Status::Timeout;
+    const Status wren = SendInstruction(kCmdWren);
+    if (wren != Status::Ok) {
+      return wren;
     }
     uint8_t tx[2 + kPageSizeBytes] = {};
     uint8_t rx[2 + kPageSizeBytes] = {};
@@ -287,7 +303,7 @@ public:
       tx[2u + i] = src[i];
     }
     if (!spi_.transfer(tx, rx, static_cast<std::size_t>(2u + len), kTimeoutMs)) {
-      return Status::Timeout;
+      return Status::BusError;
     }
     return WaitReady();
   }
@@ -297,7 +313,8 @@ public:
    *        one write cycle) per page.
    *
    * @return Status::Arg for a null `src`, `len == 0` or a range past 0x1FF (nothing is sent);
-   *         otherwise the first non-Ok status of a page write (Status::Busy, Status::Timeout).
+   *         otherwise the first non-Ok status of a page write (Status::Busy, Status::BusError,
+   *         Status::Timeout).
    *         Pages before it are written.
    */
   Status Write(uint16_t addr, const uint8_t* src, uint16_t len) noexcept {
@@ -333,8 +350,9 @@ private:
    */
   Status CheckReady() noexcept {
     uint8_t sr = 0xFF;
-    if (ReadStatus(sr) != Status::Ok) {
-      return Status::Timeout;
+    const Status st = ReadStatus(sr);
+    if (st != Status::Ok) {
+      return st;
     }
     return (sr & kSrWip) != 0u ? Status::Busy : Status::Ok;
   }
@@ -342,7 +360,7 @@ private:
   /** One-byte instruction (WREN, WRDI). */
   Status SendInstruction(uint8_t cmd) noexcept {
     uint8_t rx = 0xFF;
-    return spi_.transfer(&cmd, &rx, 1, kTimeoutMs) ? Status::Ok : Status::Timeout;
+    return spi_.transfer(&cmd, &rx, 1, kTimeoutMs) ? Status::Ok : Status::BusError;
   }
 
   Spi& spi_;

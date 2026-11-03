@@ -36,8 +36,8 @@ void probe_reports_absent_on_floating_miso_and_loopback() {
   CHECK(eep.Probe() == Status::Absent);
   chip.bus = MockAt25040::Bus::Loopback; // MISO echoes MOSI one byte late: RDSR reads 0x05
   CHECK(eep.Probe() == Status::Absent);
-  chip.bus = MockAt25040::Bus::Broken;
-  CHECK(eep.Probe() == Status::Absent);
+  chip.bus = MockAt25040::Bus::Broken; // the port reports the failure: not "absent"
+  CHECK(eep.Probe() == Status::BusError);
 }
 
 void probe_during_a_write_cycle_reads_0xff() {
@@ -118,7 +118,7 @@ void read_reports_a_failed_chunk() {
   Device eep(chip);
   chip.bus = MockAt25040::Bus::Broken;
   uint8_t buf[40] = {};
-  CHECK(eep.Read(0, buf, 40) == Status::Timeout);
+  CHECK(eep.Read(0, buf, 40) == Status::BusError);
 }
 
 void write_page_waits_for_the_write_cycle() {
@@ -171,8 +171,8 @@ void wait_ready_times_out_on_a_stuck_write_cycle() {
   floating.bus = MockAt25040::Bus::Floating;
   CHECK(eep3.WaitReady(1) == Status::Timeout);
   floating.bus = MockAt25040::Bus::Broken;
-  CHECK(eep3.WaitReady() == Status::Timeout);
-  CHECK(eep3.WaitReady(0) == Status::Timeout); // one poll at least
+  CHECK(eep3.WaitReady() == Status::BusError);
+  CHECK(eep3.WaitReady(0) == Status::BusError); // one poll at least
 }
 
 void write_page_reports_a_write_cycle_that_does_not_end() {
@@ -256,7 +256,7 @@ void write_disable_clears_the_latch() {
   CHECK(eep.ReadStatus(sr) == Status::Ok);
   CHECK(sr == 0x00);
   chip.bus = MockAt25040::Bus::Broken;
-  CHECK(eep.WriteDisable() == Status::Timeout);
+  CHECK(eep.WriteDisable() == Status::BusError);
 }
 
 void block_protection_round_trip() {
@@ -291,8 +291,8 @@ void block_protection_round_trip() {
   CHECK(eep.SetBlockProtection(static_cast<at25040::BlockProtect>(4)) == Status::Arg);
   CHECK(chip.transfers == before);
   chip.bus = MockAt25040::Bus::Broken;
-  CHECK(eep.SetBlockProtection(at25040::BlockProtect::All) == Status::Timeout);
-  CHECK(eep.GetBlockProtection(level) == Status::Timeout);
+  CHECK(eep.SetBlockProtection(at25040::BlockProtect::All) == Status::BusError);
+  CHECK(eep.GetBlockProtection(level) == Status::BusError);
 }
 
 } // namespace
