@@ -105,6 +105,47 @@
   <meta property="og:description" content="Hardware-agnostic C++17 driver for Microchip AT25010B/AT25020B/AT25040B serial EEPROMs (SPI). Part of the HardFOC ecosystem.">
   <meta property="og:url" content="https://hardfoc.github.io/hf-at25040-driver/latest/porting/">
   <meta name="twitter:card" content="summary">
+  <script>
+(function () {
+  if (typeof mermaid != "undefined" && !(mermaid instanceof Element)) return;
+  var SRC = "https://unpkg.com/mermaid@11/dist/mermaid.min.js", config = {}, real, loading, waiting = [];
+  var stub = {
+    initialize: function (c) { config = c || {}; if (real) real.initialize(config); },
+    render: function (id, text) {
+      var el = null, pres = document.querySelectorAll("pre.mermaid:not([data-hf-mermaid])");
+      for (var i = 0; i < pres.length && !el; i++) if (pres[i].textContent === text) el = pres[i];
+      if (el) el.setAttribute("data-hf-mermaid", "");
+      return near(el).then(load).then(function (m) { return m.render(id, text); });
+    }
+  };
+  function load() {
+    return loading || (loading = new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = SRC;
+      s.onload = function () {
+        real = window.mermaid;
+        window.mermaid = stub;
+        real.initialize(config);
+        resolve(real);
+      };
+      s.onerror = function () { loading = null; reject(new Error("Mermaid did not load")); };
+      document.head.appendChild(s);
+    }));
+  }
+  function near(el) {
+    if (real || !el || !("IntersectionObserver" in window)) return Promise.resolve();
+    return new Promise(function (resolve) {
+      var io = new IntersectionObserver(function (entries) {
+        if (entries.some(function (e) { return e.isIntersecting; })) { io.disconnect(); resolve(); }
+      }, { rootMargin: "100% 0px" });
+      io.observe(el);
+      waiting.push(function () { io.disconnect(); resolve(); });
+    });
+  }
+  window.addEventListener("beforeprint", function () { waiting.splice(0).forEach(function (go) { go(); }); });
+  window.mermaid = stub;
+})();
+</script>
 
   </head>
   
@@ -472,15 +513,19 @@
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
         
-          
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
-            
+  
+  
+  
+    <a href="../quickstart/" class="md-nav__link">
+      
   
   
   <span class="md-ellipsis">
@@ -494,106 +539,12 @@
   
   
 
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Get started
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
   
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../quickstart/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Quickstart
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../installation/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Installation
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../hardware/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Hardware
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
       
     </li>
   
@@ -621,15 +572,19 @@
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
         
-          
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
-            
+  
+  
+  
+    <a href="../architecture/" class="md-nav__link">
+      
   
   
   <span class="md-ellipsis">
@@ -643,78 +598,12 @@
   
   
 
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Concepts
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
   
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../architecture/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Architecture
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../protocol/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Protocol
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
       
     </li>
   
@@ -752,6 +641,8 @@
         
       
     
+    
+      
     
     <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
@@ -1088,16 +979,19 @@
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
         
-          
-          <div class="md-nav__link md-nav__container">
-            <a href="../diagrams/" class="md-nav__link ">
-              
+  
+  
+  
+    <a href="../api-reference/" class="md-nav__link">
+      
   
   
   <span class="md-ellipsis">
@@ -1111,114 +1005,12 @@
   
   
 
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Reference
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
   
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../api-reference/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    API reference
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../testing/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Testing and CI
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../changelog/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Changelog
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
       
     </li>
   
@@ -1355,18 +1147,18 @@
 <h1 id="porting">Porting<a class="headerlink" href="#porting" title="Permanent link">&para;</a></h1>
 <p>Run the driver on a new MCU by writing one class with one method, the SPI transfer, and optionally a delay.</p>
 <p>The driver never calls your SDK directly. It calls <code>transfer()</code> on a class you derive from
-<code>at25040::SpiInterface&lt;Self&gt;</code> (in <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/inc/at25040_spi_interface.hpp"><code>inc/at25040_spi_interface.hpp</code></a>). The base
+<code>at25040::SpiInterface&lt;Self&gt;</code> (in <a href="https://github.com/hardfoc/hf-at25040-driver/blob/2d1f5fa401de46ad87a12ac7890f9f210b632f65/inc/at25040_spi_interface.hpp"><code>inc/at25040_spi_interface.hpp</code></a>). The base
 class uses CRTP: the call is resolved at compile time, so there are no virtual functions, no vtable and nothing to
 allocate.</p>
 <figure class="hf-figure">
-<img src="../diagrams/driver-layers.svg#only-light" alt="Layer diagram: the application calls the hardware-agnostic AT25040 Device and its member functions, which use the CRTP SPI interface, which calls the one transfer method of the platform port you write, which drives the SPI bus and chip select of the AT25040B." width="1200" loading="lazy"><img src="../diagrams/driver-layers.dark.svg#only-dark" alt="Layer diagram: the application calls the hardware-agnostic AT25040 Device and its member functions, which use the CRTP SPI interface, which calls the one transfer method of the platform port you write, which drives the SPI bus and chip select of the AT25040B." width="1200" loading="lazy">
+<img src="../diagrams/driver-layers.svg#only-light" alt="Layer diagram: the application calls the hardware-agnostic AT25040 Device and its member functions, which use the CRTP SPI interface, which calls the one transfer method of the platform port you write, which drives the SPI bus and chip select of the AT25040B." width="1200" height="898"><img src="../diagrams/driver-layers.dark.svg#only-dark" alt="Layer diagram: the application calls the hardware-agnostic AT25040 Device and its member functions, which use the CRTP SPI interface, which calls the one transfer method of the platform port you write, which drives the SPI bus and chip select of the AT25040B." width="1200" height="898">
 <figcaption>Three layers, one of them yours</figcaption>
 </figure>
 
 <details class="hf-figure-desc">
 <summary>Figure description and sources</summary>
 <p>From top to bottom. Your application talks to one at25040::Device<Spi> object, whose public member functions (listed from inc/at25040.hpp) turn a call into AT25040 instructions: RDSR, WREN, READ and WRITE with A8 in the opcode. The communication interface (at25040::SpiInterface in inc/at25040_spi_interface.hpp) is a CRTP contract with one method. The platform port is the only code you write: a class whose transfer() runs one SPI transaction with chip select held low, and optionally delay_us() for the write-cycle wait. Below it is the hardware.</p>
-<p>Drawn from: <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/inc/at25040.hpp"><code>inc/at25040.hpp</code></a> <code>Device members</code>; <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/inc/at25040_spi_interface.hpp"><code>inc/at25040_spi_interface.hpp</code></a> <code>SpiInterface</code>; figure module <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/docs/diagrams/figures/driver-layers.py"><code>docs/diagrams/figures/driver-layers.py</code></a>.</p>
+<p>Drawn from: <a href="https://github.com/hardfoc/hf-at25040-driver/blob/2d1f5fa401de46ad87a12ac7890f9f210b632f65/inc/at25040.hpp"><code>inc/at25040.hpp</code></a> <code>Device members</code>; <a href="https://github.com/hardfoc/hf-at25040-driver/blob/2d1f5fa401de46ad87a12ac7890f9f210b632f65/inc/at25040_spi_interface.hpp"><code>inc/at25040_spi_interface.hpp</code></a> <code>SpiInterface</code>; figure module <a href="https://github.com/hardfoc/hf-at25040-driver/blob/2d1f5fa401de46ad87a12ac7890f9f210b632f65/docs/diagrams/figures/driver-layers.py"><code>docs/diagrams/figures/driver-layers.py</code></a>.</p>
 </details>
 <h2 id="what-you-implement">What you implement<a class="headerlink" href="#what-you-implement" title="Permanent link">&para;</a></h2>
 <div class="language-cpp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kt">bool</span><span class="w"> </span><span class="nf">transfer</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="kt">uint8_t</span><span class="o">*</span><span class="w"> </span><span class="n">tx</span><span class="p">,</span><span class="w"> </span><span class="kt">uint8_t</span><span class="o">*</span><span class="w"> </span><span class="n">rx</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="kt">size_t</span><span class="w"> </span><span class="n">len</span><span class="p">,</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">timeout_ms</span><span class="p">);</span>
@@ -1438,14 +1230,14 @@ On a shared bus, take the bus lock for the whole <code>transfer()</code> so anot
 high. Keep t<sub>CSS</sub>, t<sub>CSH</sub> and t<sub>CS</sub> at 100 ns or more (200 ns at 1.8 V).</p>
 <h2 id="reference-implementation">Reference implementation<a class="headerlink" href="#reference-implementation" title="Permanent link">&para;</a></h2>
 <p>The ESP32 example's port in
-<a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/examples/esp32/main/at25040_esp32_example.cpp"><code>at25040_esp32_example.cpp</code></a> is a complete ESP-IDF <code>spi_master</code>
+<a href="https://github.com/hardfoc/hf-at25040-driver/blob/2d1f5fa401de46ad87a12ac7890f9f210b632f65/examples/esp32/main/at25040_esp32_example.cpp"><code>at25040_esp32_example.cpp</code></a> is a complete ESP-IDF <code>spi_master</code>
 port: one <code>spi_transaction_t</code> with <code>length = len * 8</code>, <code>tx_buffer = tx</code> and <code>rx_buffer = rx</code>, sent with
 <code>spi_device_polling_transmit()</code> on a device configured for mode 0 with CS on <code>spics_io_num</code>, and <code>delay_us()</code> on
 <code>esp_rom_delay_us()</code>. It does not use the ESP-IDF command or address phases: the driver puts the opcode (with A8 in
 bit 3) in <code>tx[0]</code> and the address byte in <code>tx[1]</code>.</p>
 <h2 id="check-your-port">Check your port<a class="headerlink" href="#check-your-port" title="Permanent link">&para;</a></h2>
 <ol>
-<li>Build it: the port on this page is compiled by the host CI from <a href="https://github.com/hardfoc/hf-at25040-driver/blob/3e864f5a84b23df542e81fa39ab9412cb2a1c92e/tests/docs/my_spi.hpp"><code>tests/docs/</code></a>, with
+<li>Build it: the port on this page is compiled by the host CI from <a href="https://github.com/hardfoc/hf-at25040-driver/blob/2d1f5fa401de46ad87a12ac7890f9f210b632f65/tests/docs/my_spi.hpp"><code>tests/docs/</code></a>, with
    the driver instantiated over it.</li>
 <li>Call <code>Probe()</code> and log <code>LastRdsr()</code>. A ready AT25040B with no protection reads <code>0x00</code>; <code>0xFF</code> means nothing
    answered.</li>
@@ -1572,7 +1364,7 @@ poll; hold the mutex for the whole sequence.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.footer", "navigation.tracking", "navigation.instant", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "content.action.edit", "content.tabs.link", "toc.follow"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.indexes", "navigation.prune", "navigation.top", "navigation.footer", "navigation.tracking", "navigation.instant", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "content.action.edit", "content.tabs.link", "toc.follow"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "default": "latest", "provider": "mike"}}</script>
     
     
       <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
