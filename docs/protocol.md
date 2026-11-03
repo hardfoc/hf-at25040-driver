@@ -53,7 +53,7 @@ crosses a page, both with `Status::Arg`.
 
 | Status bytes | Result | Typical cause |
 | --- | --- | --- |
-| A transfer failed | `Absent` | Bus error in the port |
+| A transfer failed | `BusError` | Bus error in the port |
 | The two bytes differ | `Absent` | Noise, a contended MISO |
 | `0xFF` | `Absent` | Nothing drives MISO (pull-up or floating), or a write cycle is running |
 | `0x05` | `Absent` | MISO follows MOSI one byte late: the RDSR opcode comes back |
