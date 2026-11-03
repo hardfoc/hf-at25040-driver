@@ -1,0 +1,5 @@
+# ESP32-C6 — AT25040 example defaults (merge with idf.py set-target)
+
+# HardFOC standard: FreeRTOS runs at 1000 Hz. hf-utils-rtos-wrap rounds a
+# nonzero delay up to one tick, so ms-precision waits need a 1 ms tick.
+CONFIG_FREERTOS_HZ=1000
