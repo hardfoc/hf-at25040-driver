@@ -53,7 +53,15 @@ public:
     ++writes;
   }
 
+  /// Fault injection: the transfer with this 0-based index fails (the frame is not clocked); the
+  /// bus works before and after it. Negative: none.
+  long fail_transfer_at = -1;
+
   bool transfer(const uint8_t* tx, uint8_t* rx, std::size_t len, uint32_t /*timeout_ms*/) noexcept {
+    if (static_cast<long>(transfers) == fail_transfer_at) {
+      ++transfers;
+      return false;
+    }
     ++transfers;
     max_len = len > max_len ? len : max_len;
     const bool was_busy = busy();
