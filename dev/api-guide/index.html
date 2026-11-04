@@ -1146,7 +1146,7 @@
 
 <h1 id="api-guide">API guide<a class="headerlink" href="#api-guide" title="Permanent link">&para;</a></h1>
 <p>How to do the common jobs with the driver: detect the chip, wait, read, write, protect and handle errors.</p>
-<p>Every snippet on this page is compiled by the host CI from <a href="https://github.com/hardfoc/hf-at25040-driver/blob/2d1f5fa401de46ad87a12ac7890f9f210b632f65/tests/docs/api_tasks.cpp"><code>tests/docs/api_tasks.cpp</code></a>,
+<p>Every snippet on this page is compiled by the host CI from <a href="https://github.com/hardfoc/hf-at25040-driver/blob/f6ce5e1fffd19da117d2e75c80e6827dbb3a7e35/tests/docs/api_tasks.cpp"><code>tests/docs/api_tasks.cpp</code></a>,
 with <code>Eeprom</code> standing for <code>at25040::Device&lt;MySpi&gt;</code>. The <a href="../api-reference/">API reference</a> lists every member.</p>
 <h2 id="the-shape-of-the-api">The shape of the API<a class="headerlink" href="#the-shape-of-the-api" title="Permanent link">&para;</a></h2>
 <p>One <code>at25040::Device&lt;Spi&gt;</code> object per chip, constructed from a reference to your port. It is not copyable and
@@ -1235,7 +1235,7 @@ start-up, when the firmware may have been reset in the middle of a write:</p>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">eeprom</span><span class="p">.</span><span class="n">WaitReady</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="o">::</span><span class="n">Ok</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">eeprom</span><span class="p">.</span><span class="n">Probe</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="o">::</span><span class="n">Ok</span><span class="p">;</span>
 </span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="p">}</span>
 </span></code></pre></div>
-<p><code>WaitReady()</code> polls RDSR until RDY (bit 0) reads 0 and returns <code>Timeout</code> when the budget runs out (default
+<p><code>WaitReady()</code> polls RDSR until RDY (bit 0) reads 0 and returns <code>Timeout</code> when the budget runs out, or <code>BusError</code> when a poll's transfer fails (default
 <code>kWriteCycleTimeoutMs</code> = 10 ms, twice t<sub>WC</sub>). If your port has the optional <code>delay_us()</code> hook
 (<a href="../porting/#optional-delay-hook">Porting</a>), the driver sleeps 100 µs between polls; without it, it polls back to
 back for a bounded count that lasts at least the budget even at 20 MHz. A floating MISO reads <code>0xFF</code>, which looks
@@ -1250,7 +1250,7 @@ like a write cycle that never ends: it also returns <code>Timeout</code>.</p>
 whole array; the driver sends one READ per 16 data bytes (<code>Device::kReadChunkBytes</code>) so that a port never sees more
 than 18 bytes, and sets A8 in each opcode for addresses <code>0x100</code> and up. A range that runs past <code>0x1FF</code> is refused
 with <code>Status::Arg</code> before anything is sent: the chip would roll over to <code>0x000</code>. If a transfer fails part way,
-<code>Read()</code> returns <code>Timeout</code> and <code>dst</code> holds the chunks read before it.</p>
+<code>Read()</code> returns <code>BusError</code> and <code>dst</code> holds the chunks read before it.</p>
 <h2 id="write">Write<a class="headerlink" href="#write" title="Permanent link">&para;</a></h2>
 <div class="language-cpp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1">// Write() splits the range at 8-byte page boundaries and waits for each page's write cycle.</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="w"> </span><span class="nf">store_serial</span><span class="p">(</span><span class="n">Eeprom</span><span class="o">&amp;</span><span class="w"> </span><span class="n">eeprom</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">uint8_t</span><span class="w"> </span><span class="p">(</span><span class="o">&amp;</span><span class="n">serial</span><span class="p">)[</span><span class="mi">12</span><span class="p">])</span><span class="w"> </span><span class="p">{</span>
@@ -1282,7 +1282,7 @@ If a page fails, <code>Write()</code> returns its status and the pages before it
 </span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w"> </span><span class="c1">// already locked</span>
 </span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span><span class="p">}</span>
 </span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">eeprom</span><span class="p">.</span><span class="n">SetBlockProtection</span><span class="p">(</span><span class="n">at25040</span><span class="o">::</span><span class="n">BlockProtect</span><span class="o">::</span><span class="n">UpperHalf</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="o">::</span><span class="n">Ok</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span><span class="w"> </span><span class="c1">// Busy, Timeout</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span><span class="w"> </span><span class="c1">// Busy, BusError, Timeout</span>
 </span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">  </span><span class="p">}</span>
 </span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">  </span><span class="c1">// The chip ignores WRSR when WP is low, so read the level back.</span>
 </span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">eeprom</span><span class="p">.</span><span class="n">GetBlockProtection</span><span class="p">(</span><span class="n">level</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">at25040</span><span class="o">::</span><span class="n">Status</span><span class="o">::</span><span class="n">Ok</span><span class="w"> </span><span class="o">&amp;&amp;</span>
@@ -1337,16 +1337,18 @@ an instruction you then decided not to send:</p>
 </span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="no">at25040</span><span class="o">::</span><span class="no">Status</span><span class="o">::</span><span class="no">Ok</span><span class="p">:</span>
 </span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">"ok"</span><span class="p">;</span>
 </span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="no">at25040</span><span class="o">::</span><span class="no">Status</span><span class="o">::</span><span class="no">Timeout</span><span class="p">:</span>
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">"SPI transfer failed, or write cycle too long"</span><span class="p">;</span>
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="no">at25040</span><span class="o">::</span><span class="no">Status</span><span class="o">::</span><span class="no">Absent</span><span class="p">:</span>
-</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">"no chip answered"</span><span class="p">;</span>
-</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="no">at25040</span><span class="o">::</span><span class="no">Status</span><span class="o">::</span><span class="no">Busy</span><span class="p">:</span>
-</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">"write cycle in progress, try again"</span><span class="p">;</span>
-</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="no">at25040</span><span class="o">::</span><span class="no">Status</span><span class="o">::</span><span class="no">Arg</span><span class="p">:</span>
-</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">"bad pointer, length or address"</span><span class="p">;</span>
-</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="w">  </span><span class="p">}</span>
-</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="s">"unknown"</span><span class="p">;</span>
-</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="p">}</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">"write cycle did not end in time"</span><span class="p">;</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="no">at25040</span><span class="o">::</span><span class="no">Status</span><span class="o">::</span><span class="no">BusError</span><span class="p">:</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">"SPI transfer failed"</span><span class="p">;</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="no">at25040</span><span class="o">::</span><span class="no">Status</span><span class="o">::</span><span class="no">Absent</span><span class="p">:</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">"no chip answered"</span><span class="p">;</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="no">at25040</span><span class="o">::</span><span class="no">Status</span><span class="o">::</span><span class="no">Busy</span><span class="p">:</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">"write cycle in progress, try again"</span><span class="p">;</span>
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="no">at25040</span><span class="o">::</span><span class="no">Status</span><span class="o">::</span><span class="no">Arg</span><span class="p">:</span>
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">"bad pointer, length or address"</span><span class="p">;</span>
+</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="w">  </span><span class="p">}</span>
+</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="s">"unknown"</span><span class="p">;</span>
+</span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a><span class="p">}</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -1361,12 +1363,16 @@ an instruction you then decided not to send:</p>
 <td>The transactions completed. It does not prove a write was stored</td>
 </tr>
 <tr>
+<td><code>BusError</code></td>
+<td>Your port's <code>transfer()</code> returned <code>false</code>: the frame was not clocked (SPI driver error, bus lock timeout)</td>
+</tr>
+<tr>
 <td><code>Timeout</code></td>
-<td>Your port's <code>transfer()</code> returned <code>false</code>, or a write cycle did not end within the <code>WaitReady()</code> budget</td>
+<td>A write cycle did not end within the <code>WaitReady()</code> budget (RDY still 1; also a floating MISO)</td>
 </tr>
 <tr>
 <td><code>Absent</code></td>
-<td><code>Probe()</code> only: no plausible status register (<a href="../protocol/#probe">Protocol</a>)</td>
+<td><code>Probe()</code> only: the bus answered, but with no plausible status register (<a href="../protocol/#probe">Protocol</a>). A failed transfer is <code>BusError</code>, not <code>Absent</code></td>
 </tr>
 <tr>
 <td><code>Busy</code></td>

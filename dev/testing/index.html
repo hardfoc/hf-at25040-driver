@@ -1052,21 +1052,21 @@ a second model adds the optional <code>delay_us()</code> hook. The bus can also 
 </thead>
 <tbody>
 <tr>
-<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/2d1f5fa401de46ad87a12ac7890f9f210b632f65/tests/test_device.cpp"><code>tests/test_device.cpp</code></a></td>
+<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/f6ce5e1fffd19da117d2e75c80e6827dbb3a7e35/tests/test_device.cpp"><code>tests/test_device.cpp</code></a></td>
 <td>Probe decisions, A8 placement, argument checks, reads of any length across A8, page writes, multi-page <code>Write()</code>, waiting for the write cycle with and without a delay hook, wait timeouts, <code>Busy</code> before every instruction during a write cycle, WRDI and block protection</td>
 </tr>
 <tr>
-<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/2d1f5fa401de46ad87a12ac7890f9f210b632f65/tests/mock_at25040.hpp"><code>tests/mock_at25040.hpp</code></a></td>
+<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/f6ce5e1fffd19da117d2e75c80e6827dbb3a7e35/tests/mock_at25040.hpp"><code>tests/mock_at25040.hpp</code></a></td>
 <td>The chip model</td>
 </tr>
 <tr>
-<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/2d1f5fa401de46ad87a12ac7890f9f210b632f65/tests/install_consumer.cmake"><code>tests/install_consumer.cmake</code></a></td>
+<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/f6ce5e1fffd19da117d2e75c80e6827dbb3a7e35/tests/install_consumer.cmake"><code>tests/install_consumer.cmake</code></a></td>
 <td><code>cmake --install</code> into the build tree, then a <code>find_package(hf_at25040)</code> consumer that links <code>hf::at25040</code> and includes every public header</td>
 </tr>
 </tbody>
 </table>
 <h2 id="documentation-snippets">Documentation snippets<a class="headerlink" href="#documentation-snippets" title="Permanent link">&para;</a></h2>
-<p>Every C++ block on this site is included from <a href="https://github.com/hardfoc/hf-at25040-driver/blob/2d1f5fa401de46ad87a12ac7890f9f210b632f65/tests/docs/my_spi.hpp"><code>tests/docs/</code></a>, which the host build
+<p>Every C++ block on this site is included from <a href="https://github.com/hardfoc/hf-at25040-driver/blob/f6ce5e1fffd19da117d2e75c80e6827dbb3a7e35/tests/docs/my_spi.hpp"><code>tests/docs/</code></a>, which the host build
 compiles (target <code>hf_at25040_doc_snippets</code>) with the driver instantiated over the documented port. A change to
 the API that breaks a page breaks the build first.</p>
 <h2 id="ci-workflows">CI workflows<a class="headerlink" href="#ci-workflows" title="Permanent link">&para;</a></h2>

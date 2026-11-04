@@ -986,7 +986,7 @@ working chip apart without a logic analyser.</p>
 <td>WP is low: the chip ignores WRSR. Fix: WP (pin 3) high</td>
 </tr>
 <tr>
-<td>Every call returns <code>Timeout</code></td>
+<td>Every call returns <code>BusError</code></td>
 <td>Your port's <code>transfer()</code> returned <code>false</code>. Fix: Bus not initialised, or the bus lock timed out</td>
 </tr>
 <tr>

@@ -1158,7 +1158,7 @@ same target name as the build tree:</p>
 </span></code></pre></div>
 <p>Without CMake, add <code>inc/</code> to the include path. <code>at25040.hpp</code> then falls back to a built-in version string.</p>
 <h2 id="esp-idf">ESP-IDF<a class="headerlink" href="#esp-idf" title="Permanent link">&para;</a></h2>
-<p>The ESP-IDF component wrapper is <a href="https://github.com/hardfoc/hf-at25040-driver/blob/2d1f5fa401de46ad87a12ac7890f9f210b632f65/examples/esp32/components/hf_at25040/CMakeLists.txt"><code>examples/esp32/components/hf_at25040/</code></a>.
+<p>The ESP-IDF component wrapper is <a href="https://github.com/hardfoc/hf-at25040-driver/blob/f6ce5e1fffd19da117d2e75c80e6827dbb3a7e35/examples/esp32/components/hf_at25040/CMakeLists.txt"><code>examples/esp32/components/hf_at25040/</code></a>.
 Copy that folder into your project's <code>components/</code> (or point <code>EXTRA_COMPONENT_DIRS</code> at it) and set the
 <code>HF_AT25040_ROOT</code> cache variable to the driver checkout; the wrapper stops with a clear message when the path is
 wrong. Your component then declares <code>REQUIRES hf_at25040</code>.</p>
@@ -1180,17 +1180,17 @@ which also compiles the <code>At25040Handler</code>:</p>
 <tbody>
 <tr>
 <td>Settings</td>
-<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/2d1f5fa401de46ad87a12ac7890f9f210b632f65/cmake/hf_at25040_build_settings.cmake"><code>cmake/hf_at25040_build_settings.cmake</code></a></td>
+<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/f6ce5e1fffd19da117d2e75c80e6827dbb3a7e35/cmake/hf_at25040_build_settings.cmake"><code>cmake/hf_at25040_build_settings.cmake</code></a></td>
 <td>Target name, include directories, version: the single source of truth</td>
 </tr>
 <tr>
 <td>Library</td>
-<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/2d1f5fa401de46ad87a12ac7890f9f210b632f65/CMakeLists.txt"><code>CMakeLists.txt</code></a></td>
+<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/f6ce5e1fffd19da117d2e75c80e6827dbb3a7e35/CMakeLists.txt"><code>CMakeLists.txt</code></a></td>
 <td><code>INTERFACE</code> target for host builds and CI, install and <code>hf::at25040</code> export</td>
 </tr>
 <tr>
 <td>ESP-IDF</td>
-<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/2d1f5fa401de46ad87a12ac7890f9f210b632f65/examples/esp32/components/hf_at25040/CMakeLists.txt"><code>examples/esp32/components/hf_at25040/CMakeLists.txt</code></a></td>
+<td><a href="https://github.com/hardfoc/hf-at25040-driver/blob/f6ce5e1fffd19da117d2e75c80e6827dbb3a7e35/examples/esp32/components/hf_at25040/CMakeLists.txt"><code>examples/esp32/components/hf_at25040/CMakeLists.txt</code></a></td>
 <td>IDF component wrapper over the same settings</td>
 </tr>
 </tbody>

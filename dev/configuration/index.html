@@ -1081,7 +1081,7 @@
 <h1 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h1>
 <p>What you choose for an AT25040B: the part, the bus, write protection and the driver's fixed limits.</p>
 <p>The driver has no run-time configuration structure. Everything below is a board decision, a compile-time constant
-in <a href="https://github.com/hardfoc/hf-at25040-driver/blob/2d1f5fa401de46ad87a12ac7890f9f210b632f65/inc/at25040_registers.hpp"><code>inc/at25040_registers.hpp</code></a> or a value in the chip's status register.</p>
+in <a href="https://github.com/hardfoc/hf-at25040-driver/blob/f6ce5e1fffd19da117d2e75c80e6827dbb3a7e35/inc/at25040_registers.hpp"><code>inc/at25040_registers.hpp</code></a> or a value in the chip's status register.</p>
 <h2 id="board-decisions">Board decisions<a class="headerlink" href="#board-decisions" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1201,7 +1201,7 @@ it at start-up with <code>GetBlockProtection()</code> if your firmware depends o
 level 2 so that half is read-only and the bottom half stays writable for settings.</p>
 <h2 id="version">Version<a class="headerlink" href="#version" title="Permanent link">&para;</a></h2>
 <p><code>GetAt25040DriverVersion()</code> returns the version from
-<a href="https://github.com/hardfoc/hf-at25040-driver/blob/2d1f5fa401de46ad87a12ac7890f9f210b632f65/cmake/hf_at25040_build_settings.cmake"><code>cmake/hf_at25040_build_settings.cmake</code></a>, written into
+<a href="https://github.com/hardfoc/hf-at25040-driver/blob/f6ce5e1fffd19da117d2e75c80e6827dbb3a7e35/cmake/hf_at25040_build_settings.cmake"><code>cmake/hf_at25040_build_settings.cmake</code></a>, written into
 <code>at25040_version.h</code> at configure time.</p>
 
 

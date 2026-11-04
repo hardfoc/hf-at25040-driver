@@ -887,6 +887,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#breaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Breaking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#added" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -996,6 +1007,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#breaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Breaking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#added" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1079,6 +1101,16 @@
 <p>What changed in each release of the driver. Entries marked <strong>BREAKING</strong> need source changes in code that used the
 affected API.</p>
 <h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<h3 id="breaking">Breaking<a class="headerlink" href="#breaking" title="Permanent link">&para;</a></h3>
+<ul>
+<li>New <code>Status::BusError</code> (5) for a transfer the port reported as failed. Every call returned <code>Status::Timeout</code>
+  for it, the same as a write cycle that did not end, and <code>Probe()</code> returned <code>Absent</code>; now <code>Timeout</code> means only
+  that RDY was still 1 at the end of the <code>WaitReady()</code> budget, <code>Absent</code> only that the bus answered with no
+  plausible status register, and a failed <code>transfer()</code> is <code>BusError</code> in <code>ReadStatus()</code>, <code>Probe()</code>, <code>Read()</code>,
+  <code>WaitReady()</code>, <code>WriteEnable()</code>, <code>WriteDisable()</code>, <code>SetBlockProtection()</code>, <code>GetBlockProtection()</code>,
+  <code>WritePage()</code> and <code>Write()</code>. <strong>BREAKING</strong> for code that treated <code>Timeout</code> as a bus error or switched over
+  <code>Status</code> exhaustively.</li>
+</ul>
 <h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>WaitReady(timeout_ms)</code>: polls RDSR until RDY clears, <code>Timeout</code> after the budget (default
