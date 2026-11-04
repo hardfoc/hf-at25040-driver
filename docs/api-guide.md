@@ -52,7 +52,7 @@ start-up, when the firmware may have been reset in the middle of a write:
 --8<-- "tests/docs/api_tasks.cpp:wait"
 ```
 
-`WaitReady()` polls RDSR until RDY (bit 0) reads 0 and returns `Timeout` when the budget runs out (default
+`WaitReady()` polls RDSR until RDY (bit 0) reads 0 and returns `Timeout` when the budget runs out, or `BusError` when a poll's transfer fails (default
 `kWriteCycleTimeoutMs` = 10 ms, twice t<sub>WC</sub>). If your port has the optional `delay_us()` hook
 ([Porting](porting.md#optional-delay-hook)), the driver sleeps 100 µs between polls; without it, it polls back to
 back for a bounded count that lasts at least the budget even at 20 MHz. A floating MISO reads `0xFF`, which looks
@@ -68,7 +68,7 @@ like a write cycle that never ends: it also returns `Timeout`.
 whole array; the driver sends one READ per 16 data bytes (`Device::kReadChunkBytes`) so that a port never sees more
 than 18 bytes, and sets A8 in each opcode for addresses `0x100` and up. A range that runs past `0x1FF` is refused
 with `Status::Arg` before anything is sent: the chip would roll over to `0x000`. If a transfer fails part way,
-`Read()` returns `Timeout` and `dst` holds the chunks read before it.
+`Read()` returns `BusError` and `dst` holds the chunks read before it.
 
 ## Write
 
@@ -121,8 +121,9 @@ an instruction you then decided not to send:
 | Status | Meaning |
 | --- | --- |
 | `Ok` | The transactions completed. It does not prove a write was stored |
-| `Timeout` | Your port's `transfer()` returned `false`, or a write cycle did not end within the `WaitReady()` budget |
-| `Absent` | `Probe()` only: no plausible status register ([Protocol](protocol.md#probe)) |
+| `BusError` | Your port's `transfer()` returned `false`: the frame was not clocked (SPI driver error, bus lock timeout) |
+| `Timeout` | A write cycle did not end within the `WaitReady()` budget (RDY still 1; also a floating MISO) |
+| `Absent` | `Probe()` only: the bus answered, but with no plausible status register ([Protocol](protocol.md#probe)). A failed transfer is `BusError`, not `Absent` |
 | `Busy` | RDSR showed a write cycle in progress, so the call sent nothing else; try again after `WaitReady()`. From `Probe()`: RDY set in a status byte that is not `0xFF` |
 | `Arg` | `Read()`, `WritePage()`, `Write()`, `SetBlockProtection()`: null pointer, a level outside `BlockProtect`, zero length, range past the array, or a page crossing (nothing is sent) |
 

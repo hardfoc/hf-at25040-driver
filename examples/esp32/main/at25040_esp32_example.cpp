@@ -95,6 +95,8 @@ const char* StatusName(at25040::Status st) {
     return "Ok";
   case at25040::Status::Timeout:
     return "Timeout";
+  case at25040::Status::BusError:
+    return "BusError";
   case at25040::Status::Absent:
     return "Absent";
   case at25040::Status::Busy:

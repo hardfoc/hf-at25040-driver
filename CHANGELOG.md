@@ -6,6 +6,16 @@ code that used the affected API.
 
 ## Unreleased
 
+### Breaking
+
+- New `Status::BusError` (5) for a transfer the port reported as failed. Every call returned `Status::Timeout`
+  for it, the same as a write cycle that did not end, and `Probe()` returned `Absent`; now `Timeout` means only
+  that RDY was still 1 at the end of the `WaitReady()` budget, `Absent` only that the bus answered with no
+  plausible status register, and a failed `transfer()` is `BusError` in `ReadStatus()`, `Probe()`, `Read()`,
+  `WaitReady()`, `WriteEnable()`, `WriteDisable()`, `SetBlockProtection()`, `GetBlockProtection()`,
+  `WritePage()` and `Write()`. **BREAKING** for code that treated `Timeout` as a bus error or switched over
+  `Status` exhaustively.
+
 ### Added
 
 - `WaitReady(timeout_ms)`: polls RDSR until RDY clears, `Timeout` after the budget (default

@@ -14,7 +14,7 @@ working chip apart without a logic analyser.
 | Calls return `Busy` | RDSR shows a write cycle in progress: one started outside the driver (an MCU reset during a write, a WRITE or WRSR sent through your port). Fix: `WaitReady()`, then retry |
 | `Read()` and the writes return `Busy`, `Probe()` returns `Absent` with `0xFF` | Nothing drives MISO, which then reads RDY = 1. Fix: Check SO (pin 2), CS (pin 1), VCC |
 | `SetBlockProtection()` returns `Ok`, `GetBlockProtection()` shows the old level | WP is low: the chip ignores WRSR. Fix: WP (pin 3) high |
-| Every call returns `Timeout` | Your port's `transfer()` returned `false`. Fix: Bus not initialised, or the bus lock timed out |
+| Every call returns `BusError` | Your port's `transfer()` returned `false`. Fix: Bus not initialised, or the bus lock timed out |
 | `WritePage()` returns `Ok`, data unchanged | WP low or the address is block-protected: the chip ignores the write. Fix: WP (pin 3) high; `ReadStatus()` BP bits |
 | `WritePage()` or `WaitReady()` returns `Timeout`, other calls work | RDY still 1 after 10 ms: MISO reads `0xFF` (floating), or the chip is damaged. Fix: Check SO (pin 2) and VCC; `LastRdsr()` shows the last status byte |
 | `WritePage()` returns `Arg` | More than 8 bytes, or the write crosses an 8-byte page. Fix: Use `Write()`, which splits at page boundaries ([API guide](api-guide.md#write)) |
